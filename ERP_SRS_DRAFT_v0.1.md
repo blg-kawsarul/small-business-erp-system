@@ -739,3 +739,23 @@ After approval of this draft SRS, the next documents should be:
 - API specification
 - UI screen list and workflow specification
 - Posting and stock ledger rules document
+
+
+
+
+
+How to run:
+cd ~/Desktop/"Sompriti Enterprice Project"/sompriti-erp/frontend
+npm install
+npm start
+
+
+brew services start postgresql@17
+
+psql postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'postgres';"
+psql postgres -c "CREATE DATABASE sompriti_erp OWNER postgres;"
+
+psql -h localhost -U postgres -d sompriti_erp -c "select 1;"
+
+cd ~/Desktop/"Sompriti Enterprice Project"/sompriti-erp/backend
+dotnet run --project src/Sompriti.Erp.Api
