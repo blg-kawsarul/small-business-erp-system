@@ -83,5 +83,5 @@ public sealed class AppOptions
     public const string Section = "App";
     /// <summary>Public URL of the app, used in password reset links. Example: https://erp.example.com</summary>
     public string PublicBaseUrl { get; set; } = "http://localhost:4200";
-    public string BusinessName { get; set; } = "Sompriti ERP";
+    public string BusinessName { get; set; } = "Enterprise Resource Planning";
 }

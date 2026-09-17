@@ -8,14 +8,15 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { applyServerErrors, bdMobileValidator, controlError, passwordValidator } from '../../shared/form-errors';
+import { AppBrand } from '../../shared/app-brand';
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AppBrand],
   template: `
     <div class="auth-wrap">
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <div class="brand"><mat-icon>inventory_2</mat-icon> Sompriti ERP</div>
+        <app-brand />
         <h1>Create account</h1>
         <p class="muted">New accounts can view reports once an administrator links them to a customer or supplier.</p>
 

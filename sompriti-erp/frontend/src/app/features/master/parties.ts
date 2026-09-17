@@ -2,10 +2,10 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSortModule } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
@@ -13,9 +13,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
 import { Paged, Party } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, bdMobileValidator, controlError } from '../../shared/form-errors';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 
 type PartyKind = 'customer' | 'supplier';
@@ -23,16 +25,21 @@ type PartyKind = 'customer' | 'supplier';
 /** Customers and suppliers share this page; the kind comes from route data. */
 @Component({
   selector: 'app-parties',
-  imports: [RouterLink, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule],
+  imports: [RouterLink, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
           <h1>{{ title() }}</h1>
-          <div class="subtitle">Codes are generated automatically. SMS payment notices go to the mobile number.</div>
+          @if (!layout.isHandset()) {
+            <div class="subtitle">Codes are generated automatically. SMS payment notices go to the mobile number.</div>
+          }
         </div>
-        <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon>New {{ kind() }}</button></div>
+        @if (!layout.isHandset()) {
+          <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon>New {{ kind() }}</button></div>
+        }
       </div>
+
       <div class="card">
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
@@ -42,36 +49,70 @@ type PartyKind = 'customer' | 'supplier';
           </mat-form-field>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
-        <div class="table-wrap">
-          <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
-            <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let p" class="code">{{ p.code }}</td></ng-container>
-            <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let p">{{ p.name }}</td></ng-container>
-            <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>Mobile</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.mobileNumber }}</td></ng-container>
-            <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef mat-sort-header>City</th><td mat-cell *matCellDef="let p">{{ p.city }}</td></ng-container>
-            <ng-container matColumnDef="address"><th mat-header-cell *matHeaderCellDef>Address</th><td mat-cell *matCellDef="let p">{{ p.address }}</td></ng-container>
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let p" class="num nowrap">
-                <a mat-icon-button matTooltip="Orders" [routerLink]="ordersLink()" [queryParams]="{ partyUuid: p.uuid, partyLabel: p.name + ' (' + p.code + ')' }"><mat-icon>receipt_long</mat-icon></a>
-                <button mat-icon-button matTooltip="Edit" (click)="edit(p)"><mat-icon>edit</mat-icon></button>
-                @if (auth.isAdmin()) {
-                  <button mat-icon-button matTooltip="Delete" (click)="remove(p)"><mat-icon>delete</mat-icon></button>
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (p of list.items(); track p.uuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ p.name }}</div>
+                    <div class="m-sub">{{ p.code }} · {{ p.mobileNumber }}</div>
+                  </div>
+                  <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
+                  <mat-menu #menu="matMenu">
+                    <a mat-menu-item [routerLink]="ordersLink()" [queryParams]="{ partyUuid: p.uuid, partyLabel: p.name + ' (' + p.code + ')' }">
+                      <mat-icon>receipt_long</mat-icon>View orders
+                    </a>
+                    <button mat-menu-item (click)="edit(p)"><mat-icon>edit</mat-icon>Edit</button>
+                    @if (auth.isAdmin()) { <button mat-menu-item (click)="remove(p)"><mat-icon>delete</mat-icon>Delete</button> }
+                  </mat-menu>
+                </div>
+                @if (p.address || p.city) {
+                  <div class="m-sub address">{{ p.address }}@if (p.address && p.city) {, }{{ p.city }}</div>
                 }
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          </table>
-        </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
+              <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let p" class="code">{{ p.code }}</td></ng-container>
+              <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let p">{{ p.name }}</td></ng-container>
+              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>Mobile</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.mobileNumber }}</td></ng-container>
+              <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef mat-sort-header>City</th><td mat-cell *matCellDef="let p">{{ p.city }}</td></ng-container>
+              <ng-container matColumnDef="address"><th mat-header-cell *matHeaderCellDef>Address</th><td mat-cell *matCellDef="let p">{{ p.address }}</td></ng-container>
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let p" class="num nowrap">
+                  <a mat-icon-button matTooltip="Orders" [routerLink]="ordersLink()" [queryParams]="{ partyUuid: p.uuid, partyLabel: p.name + ' (' + p.code + ')' }"><mat-icon>receipt_long</mat-icon></a>
+                  <button mat-icon-button matTooltip="Edit" (click)="edit(p)"><mat-icon>edit</mat-icon></button>
+                  @if (auth.isAdmin()) {
+                    <button mat-icon-button matTooltip="Delete" (click)="remove(p)"><mat-icon>delete</mat-icon></button>
+                  }
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="columns"></tr>
+              <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            </table>
+          </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No ' + kind() + 's found.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[10, 20, 50, 100]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" [pageSizes]="[10, 20, 50, 100]" />
       </div>
+
+      @if (layout.isHandset()) {
+        <button mat-fab class="fab" [attr.aria-label]="'New ' + kind()" (click)="edit()"><mat-icon>add</mat-icon></button>
+      }
     </div>
   `,
+  styles: `.address { margin-top: 8px; }`,
 })
 export class PartiesPage implements OnInit {
   readonly kind = input<PartyKind>('customer');
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly dialog = inject(MatDialog);
   private readonly notify = inject(NotifyService);
@@ -87,8 +128,8 @@ export class PartiesPage implements OnInit {
   }
 
   edit(party?: Party): void {
-    this.dialog.open(PartyDialog, { data: { kind: this.kind(), party: party ?? null }, width: '640px' }).afterClosed()
-      .subscribe((saved) => saved && this.list.reload());
+    this.dialog.open(PartyDialog, this.layout.dialog({ kind: this.kind(), party: party ?? null })).afterClosed()
+      .subscribe((saved) => saved && this.list.resetToFirstPage());
   }
 
   remove(p: Party): void {
@@ -96,7 +137,7 @@ export class PartiesPage implements OnInit {
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`${this.path()}/${p.uuid}`, { revision: p.revision }).subscribe({
-          next: () => { this.notify.success('Deleted.'); this.list.reload(); },
+          next: () => { this.notify.success('Deleted.'); this.list.resetToFirstPage(); },
           error: (e) => this.notify.error(e),
         });
       });

@@ -7,32 +7,39 @@ import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angu
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
 import { AppUser, DropdownItem, Paged, Role } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, bdMobileValidator, controlError, passwordValidator } from '../../shared/form-errors';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { SearchSelect } from '../../shared/search-select';
 import { StatusChip } from '../../shared/status-chip';
 
 @Component({
   selector: 'app-users',
-  imports: [DatePipe, ReactiveFormsModule, MatTableModule, MatPaginatorModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, StatusChip],
+  imports: [DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
           <h1>Users</h1>
-          <div class="subtitle">Manage roles and link USER accounts to a buyer (customer) and/or supplier so they can see their own reports.</div>
+          @if (!layout.isHandset()) {
+            <div class="subtitle">Manage roles and link USER accounts to a buyer (customer) and/or supplier so they can see their own reports.</div>
+          }
         </div>
-        <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>person_add</mat-icon>New user</button></div>
+        @if (!layout.isHandset()) {
+          <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>person_add</mat-icon>New user</button></div>
+        }
       </div>
+
       <div class="card">
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
@@ -52,41 +59,81 @@ import { StatusChip } from '../../shared/status-chip';
           <mat-checkbox [formControl]="includeDeleted" (change)="list.resetToFirstPage()">Show deleted</mat-checkbox>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
-        <div class="table-wrap">
-          <table mat-table [dataSource]="list.items()">
-            <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Name</th>
-              <td mat-cell *matCellDef="let u">{{ u.userName }} @if (u.isLocked) { <mat-icon class="lock" matTooltip="Locked after failed logins">lock</mat-icon> }<div class="muted">{{ u.email }}</div></td></ng-container>
-            <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>Mobile</th><td mat-cell *matCellDef="let u" class="nowrap">{{ u.phoneNumber }}</td></ng-container>
-            <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>Role</th><td mat-cell *matCellDef="let u"><app-status [value]="u.role" /></td></ng-container>
-            <ng-container matColumnDef="links"><th mat-header-cell *matHeaderCellDef>Linked to</th>
-              <td mat-cell *matCellDef="let u">
-                @if (u.customerName) { <div><span class="muted">Buyer:</span> {{ u.customerName }} <span class="code">{{ u.customerCode }}</span></div> }
-                @if (u.supplierName) { <div><span class="muted">Supplier:</span> {{ u.supplierName }} <span class="code">{{ u.supplierCode }}</span></div> }
-                @if (!u.customerName && !u.supplierName) { <span class="muted">—</span> }
-              </td></ng-container>
-            <ng-container matColumnDef="lastLogin"><th mat-header-cell *matHeaderCellDef>Last login</th><td mat-cell *matCellDef="let u" class="muted nowrap">{{ u.lastLoginDate ? (u.lastLoginDate | date: 'dd MMM yyyy, h:mm a') : 'Never' }}</td></ng-container>
-            <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let u"><app-status [value]="u.status" /></td></ng-container>
-            <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let u" class="num nowrap">
-                @if (u.status === 'ACTIVE') {
-                  @if (u.isLocked) { <button mat-icon-button matTooltip="Unlock" (click)="unlock(u)"><mat-icon>lock_open</mat-icon></button> }
-                  <button mat-icon-button matTooltip="Edit" (click)="edit(u)"><mat-icon>edit</mat-icon></button>
-                  @if (u.uuid !== auth.user()?.uuid) { <button mat-icon-button matTooltip="Delete" (click)="remove(u)"><mat-icon>delete</mat-icon></button> }
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (u of list.items(); track u.uuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ u.userName }} @if (u.isLocked) { <mat-icon class="lock">lock</mat-icon> }</div>
+                    <div class="m-sub">{{ u.email }}</div>
+                    <div class="m-sub">{{ u.phoneNumber }}</div>
+                  </div>
+                  <div class="m-right">
+                    <app-status [value]="u.role" />
+                    @if (u.status === 'ACTIVE') {
+                      <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
+                      <mat-menu #menu="matMenu">
+                        <button mat-menu-item (click)="edit(u)"><mat-icon>edit</mat-icon>Edit</button>
+                        @if (u.isLocked) { <button mat-menu-item (click)="unlock(u)"><mat-icon>lock_open</mat-icon>Unlock</button> }
+                        @if (u.uuid !== auth.user()?.uuid) { <button mat-menu-item (click)="remove(u)"><mat-icon>delete</mat-icon>Delete</button> }
+                      </mat-menu>
+                    } @else { <app-status [value]="u.status" /> }
+                  </div>
+                </div>
+                @if (u.customerName || u.supplierName) {
+                  <div class="m-meta two">
+                    @if (u.customerName) { <div><span class="k">Buyer</span><span class="v">{{ u.customerName }}</span></div> }
+                    @if (u.supplierName) { <div><span class="k">Supplier</span><span class="v">{{ u.supplierName }}</span></div> }
+                  </div>
                 }
-              </td></ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          </table>
-        </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table mat-table [dataSource]="list.items()">
+              <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Name</th>
+                <td mat-cell *matCellDef="let u">{{ u.userName }} @if (u.isLocked) { <mat-icon class="lock" matTooltip="Locked after failed logins">lock</mat-icon> }<div class="muted">{{ u.email }}</div></td></ng-container>
+              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>Mobile</th><td mat-cell *matCellDef="let u" class="nowrap">{{ u.phoneNumber }}</td></ng-container>
+              <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>Role</th><td mat-cell *matCellDef="let u"><app-status [value]="u.role" /></td></ng-container>
+              <ng-container matColumnDef="links"><th mat-header-cell *matHeaderCellDef>Linked to</th>
+                <td mat-cell *matCellDef="let u">
+                  @if (u.customerName) { <div><span class="muted">Buyer:</span> {{ u.customerName }} <span class="code">{{ u.customerCode }}</span></div> }
+                  @if (u.supplierName) { <div><span class="muted">Supplier:</span> {{ u.supplierName }} <span class="code">{{ u.supplierCode }}</span></div> }
+                  @if (!u.customerName && !u.supplierName) { <span class="muted">—</span> }
+                </td></ng-container>
+              <ng-container matColumnDef="lastLogin"><th mat-header-cell *matHeaderCellDef>Last login</th><td mat-cell *matCellDef="let u" class="muted nowrap">{{ u.lastLoginDate ? (u.lastLoginDate | date: 'dd MMM yyyy, h:mm a') : 'Never' }}</td></ng-container>
+              <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let u"><app-status [value]="u.status" /></td></ng-container>
+              <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let u" class="num nowrap">
+                  @if (u.status === 'ACTIVE') {
+                    @if (u.isLocked) { <button mat-icon-button matTooltip="Unlock" (click)="unlock(u)"><mat-icon>lock_open</mat-icon></button> }
+                    <button mat-icon-button matTooltip="Edit" (click)="edit(u)"><mat-icon>edit</mat-icon></button>
+                    @if (u.uuid !== auth.user()?.uuid) { <button mat-icon-button matTooltip="Delete" (click)="remove(u)"><mat-icon>delete</mat-icon></button> }
+                  }
+                </td></ng-container>
+              <tr mat-header-row *matHeaderRowDef="columns"></tr>
+              <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            </table>
+          </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No users found.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[20, 50, 100]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" />
       </div>
+
+      @if (layout.isHandset()) {
+        <button mat-fab class="fab" aria-label="New user" (click)="edit()"><mat-icon>person_add</mat-icon></button>
+      }
     </div>
   `,
   styles: `.lock { font-size: 16px; width: 16px; height: 16px; vertical-align: middle; color: var(--erp-negative); }`,
 })
 export class UsersPage implements OnInit {
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly dialog = inject(MatDialog);
   private readonly notify = inject(NotifyService);
@@ -100,12 +147,12 @@ export class UsersPage implements OnInit {
   }
 
   edit(user?: AppUser): void {
-    this.dialog.open(UserDialog, { data: user ?? null, width: '640px' }).afterClosed().subscribe((ok) => ok && this.list.reload());
+    this.dialog.open(UserDialog, this.layout.dialog(user ?? null)).afterClosed().subscribe((ok) => ok && this.list.resetToFirstPage());
   }
 
   unlock(u: AppUser): void {
     this.api.post(`/users/${u.uuid}/unlock`, { revision: u.revision }).subscribe({
-      next: () => { this.notify.success('User unlocked.'); this.list.reload(); },
+      next: () => { this.notify.success('User unlocked.'); this.list.resetToFirstPage(); },
       error: (e) => this.notify.error(e),
     });
   }
@@ -115,7 +162,7 @@ export class UsersPage implements OnInit {
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`/users/${u.uuid}`, { revision: u.revision }).subscribe({
-          next: () => { this.notify.success('User deleted.'); this.list.reload(); },
+          next: () => { this.notify.success('User deleted.'); this.list.resetToFirstPage(); },
           error: (e) => this.notify.error(e),
         });
       });

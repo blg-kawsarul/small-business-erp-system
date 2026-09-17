@@ -6,12 +6,14 @@
       </h1>
       <div class="subtitle">Saved as DRAFT. Stock changes only when you finalize the order.</div>
     </div>
-    <div class="actions">
-      <button mat-button type="button" (click)="cancel()">Cancel</button>
-      <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || loading()">
-        <mat-icon>save</mat-icon>Save draft
-      </button>
-    </div>
+    @if (!layout.isHandset()) {
+      <div class="actions">
+        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || loading()">
+          <mat-icon>save</mat-icon>Save draft
+        </button>
+      </div>
+    }
   </div>
 
   @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
@@ -73,95 +75,177 @@
           <span class="muted">Prices are per piece. Values fill in automatically and can be changed.</span>
         </div>
 
-        <div class="line-grid line-labels" aria-hidden="true">
-          <span>#</span><span>Product</span><span>Type</span><span>Boxes / Pcs</span><span>Total pcs</span>
-          <span>Per pcs</span><span>Per box</span><span>Line total</span><span></span>
-        </div>
+        @if (!layout.isHandset()) {
+          <div class="line-grid line-labels" aria-hidden="true">
+            <span>#</span><span>Product</span><span>Type</span><span>Boxes / Pcs</span><span>Total pcs</span>
+            <span>Per pcs</span><span>Per box</span><span>Line total</span><span></span>
+          </div>
+        }
 
         <div formArrayName="lines">
           @for (line of lines.controls; track line; let i = $index) {
-            <div class="line-grid line-row" [formGroupName]="i">
-              <span class="line-no">{{ i + 1 }}</span>
-
-              <div class="cell product">
-                <app-search-select
-                  label="Product"
-                  [control]="line.controls.productUuid"
-                  [fetch]="fetchProducts"
-                  [hint]="productHint"
-                  [initialLabel]="productMeta(i)?.label ?? null"
-                  subscript="dynamic"
-                  (selected)="onProductSelected(i, $event)" />
+            @if (layout.isHandset()) {
+              <!-- ------------------------------------ phone: one card per line -->
+              <div class="line-card" [formGroupName]="i">
+                <div class="line-card-head">
+                  <span class="line-no">{{ i + 1 }}</span>
+                  <app-search-select
+                    label="Product"
+                    [control]="line.controls.productUuid"
+                    [fetch]="fetchProducts"
+                    [hint]="productHint"
+                    [initialLabel]="productMeta(i)?.label ?? null"
+                    subscript="dynamic"
+                    (selected)="onProductSelected(i, $event)" />
+                  <button mat-icon-button type="button" aria-label="Remove line" (click)="removeLine(i)"><mat-icon>delete</mat-icon></button>
+                </div>
                 @if (productMeta(i); as p) {
                   <div class="product-info">
                     @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
                     @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} pcs }
                   </div>
                 }
+
+                <div class="line-fields">
+                  <mat-form-field subscriptSizing="dynamic">
+                    <mat-label>Type</mat-label>
+                    <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
+                      <mat-option value="PCS">PCS</mat-option>
+                      <mat-option value="BOX" [disabled]="!canUseBox(i)">BOX</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  @if (line.controls.quantityType.value === 'BOX') {
+                    <mat-form-field subscriptSizing="dynamic">
+                      <mat-label>Boxes</mat-label>
+                      <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="boxQuantity" (input)="recalcQuantity(i)" />
+                    </mat-form-field>
+                  } @else {
+                    <mat-form-field subscriptSizing="dynamic">
+                      <mat-label>Pcs</mat-label>
+                      <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                    </mat-form-field>
+                  }
+
+                  <mat-form-field subscriptSizing="dynamic">
+                    <mat-label>Total pcs</mat-label>
+                    <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+                  </mat-form-field>
+
+                  <mat-form-field subscriptSizing="dynamic">
+                    <mat-label>Price / pcs</mat-label>
+                    <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
+                  </mat-form-field>
+
+                  @if (line.controls.quantityType.value === 'BOX') {
+                    <mat-form-field subscriptSizing="dynamic">
+                      <mat-label>Price / box</mat-label>
+                      <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)" />
+                    </mat-form-field>
+                  }
+
+                  <mat-form-field subscriptSizing="dynamic" class="line-total-field">
+                    <mat-label>Line total</mat-label>
+                    <span matTextPrefix>Tk&nbsp;</span>
+                    <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
+                  </mat-form-field>
+                </div>
+
+                @if (line.touched && line.invalid) {
+                  <div class="line-error negative">
+                    @for (name of ['productUuid', 'boxQuantity', 'pcsQuantity', 'totalQuantityPcs', 'perPcsPrice', 'perBoxPrice', 'totalPrice']; track name) {
+                      @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
+                    }
+                  </div>
+                }
               </div>
+            } @else {
+              <!-- ------------------------------------ desktop: one grid row per line -->
+              <div class="line-grid line-row" [formGroupName]="i">
+                <span class="line-no">{{ i + 1 }}</span>
 
-              <mat-form-field class="cell" subscriptSizing="dynamic">
-                <mat-label>Type</mat-label>
-                <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
-                  <mat-option value="PCS">PCS</mat-option>
-                  <mat-option value="BOX" [disabled]="!canUseBox(i)">BOX</mat-option>
-                </mat-select>
-              </mat-form-field>
-
-              @if (line.controls.quantityType.value === 'BOX') {
-                <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Boxes</mat-label>
-                  <input matInput type="number" min="1" step="1" formControlName="boxQuantity" (input)="recalcQuantity(i)" />
-                </mat-form-field>
-              } @else {
-                <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Pcs</mat-label>
-                  <input matInput type="number" min="1" step="1" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
-                </mat-form-field>
-              }
-
-              <mat-form-field class="cell" subscriptSizing="dynamic">
-                <mat-label>Total pcs</mat-label>
-                <input matInput type="number" min="1" step="1" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
-              </mat-form-field>
-
-              <mat-form-field class="cell" subscriptSizing="dynamic">
-                <mat-label>Per pcs</mat-label>
-                <input matInput type="number" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
-              </mat-form-field>
-
-              <mat-form-field class="cell" subscriptSizing="dynamic">
-                <mat-label>Per box</mat-label>
-                <input matInput type="number" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)"
-                       [readonly]="line.controls.quantityType.value !== 'BOX'" />
-              </mat-form-field>
-
-              <mat-form-field class="cell" subscriptSizing="dynamic">
-                <mat-label>Line total</mat-label>
-                <input matInput type="number" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
-              </mat-form-field>
-
-              <button mat-icon-button type="button" class="remove" matTooltip="Remove line" (click)="removeLine(i)">
-                <mat-icon>delete</mat-icon>
-              </button>
-
-              @if (line.touched && line.invalid) {
-                <div class="line-error negative">
-                  @for (name of ['productUuid', 'boxQuantity', 'pcsQuantity', 'totalQuantityPcs', 'perPcsPrice', 'perBoxPrice', 'totalPrice']; track name) {
-                    @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
+                <div class="cell product">
+                  <app-search-select
+                    label="Product"
+                    [control]="line.controls.productUuid"
+                    [fetch]="fetchProducts"
+                    [hint]="productHint"
+                    [initialLabel]="productMeta(i)?.label ?? null"
+                    subscript="dynamic"
+                    (selected)="onProductSelected(i, $event)" />
+                  @if (productMeta(i); as p) {
+                    <div class="product-info">
+                      @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
+                      @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} pcs }
+                    </div>
                   }
                 </div>
-              }
-            </div>
+
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Type</mat-label>
+                  <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
+                    <mat-option value="PCS">PCS</mat-option>
+                    <mat-option value="BOX" [disabled]="!canUseBox(i)">BOX</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                @if (line.controls.quantityType.value === 'BOX') {
+                  <mat-form-field class="cell" subscriptSizing="dynamic">
+                    <mat-label>Boxes</mat-label>
+                    <input matInput type="number" min="1" step="1" formControlName="boxQuantity" (input)="recalcQuantity(i)" />
+                  </mat-form-field>
+                } @else {
+                  <mat-form-field class="cell" subscriptSizing="dynamic">
+                    <mat-label>Pcs</mat-label>
+                    <input matInput type="number" min="1" step="1" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                  </mat-form-field>
+                }
+
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Total pcs</mat-label>
+                  <input matInput type="number" min="1" step="1" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+                </mat-form-field>
+
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Per pcs</mat-label>
+                  <input matInput type="number" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
+                </mat-form-field>
+
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Per box</mat-label>
+                  <input matInput type="number" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)"
+                         [readonly]="line.controls.quantityType.value !== 'BOX'" />
+                </mat-form-field>
+
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Line total</mat-label>
+                  <input matInput type="number" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
+                </mat-form-field>
+
+                <button mat-icon-button type="button" class="remove" matTooltip="Remove line" (click)="removeLine(i)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+
+                @if (line.touched && line.invalid) {
+                  <div class="line-error negative">
+                    @for (name of ['productUuid', 'boxQuantity', 'pcsQuantity', 'totalQuantityPcs', 'perPcsPrice', 'perBoxPrice', 'totalPrice']; track name) {
+                      @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
+                    }
+                  </div>
+                }
+              </div>
+            }
           }
         </div>
 
         <div class="lines-foot">
           <button mat-stroked-button type="button" (click)="addLine()"><mat-icon>add</mat-icon>Add line</button>
-          <div class="order-total">
-            <span class="muted">Order total</span>
-            <strong>{{ total() | money }}</strong>
-          </div>
+          @if (!layout.isHandset()) {
+            <div class="order-total">
+              <span class="muted">Order total</span>
+              <strong>{{ total() | money }}</strong>
+            </div>
+          }
         </div>
       </section>
 
@@ -180,10 +264,20 @@
         </div>
       }
 
-      <div class="bottom-actions">
-        <button mat-button type="button" (click)="cancel()">Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>Save draft</button>
-      </div>
+      @if (layout.isHandset()) {
+        <div class="save-bar">
+          <div class="bar-total">
+            <span class="muted">Order total</span>
+            <strong>{{ total() | money }}</strong>
+          </div>
+          <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>Save draft</button>
+        </div>
+      } @else {
+        <div class="bottom-actions">
+          <button mat-button type="button" (click)="cancel()">Cancel</button>
+          <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>Save draft</button>
+        </div>
+      }
     </form>
   }
 </div>

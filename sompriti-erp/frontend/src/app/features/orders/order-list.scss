@@ -1,0 +1,22 @@
+.chip {
+  border-radius: 999px;
+  min-width: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--erp-muted);
+  background: var(--erp-chip-neutral-bg);
+}
+.chip.on { background: var(--mat-sys-primary); color: #fff; }
+
+.filter-button { position: relative; }
+.filter-button.has-filters { color: var(--mat-sys-primary); }
+.filter-button .badge {
+  position: absolute; top: 4px; right: 2px;
+  min-width: 16px; height: 16px; line-height: 16px;
+  padding: 0 4px; box-sizing: border-box;
+  border-radius: 999px; background: var(--mat-sys-primary); color: #fff;
+  font-size: 10px; font-weight: 700; text-align: center;
+}
+
+.empty .empty-icon { font-size: 40px; width: 40px; height: 40px; color: var(--erp-border); }
+.empty p { margin: 8px 0 12px; }

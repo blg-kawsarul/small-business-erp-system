@@ -1,9 +1,11 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 import { OrderKind, ProblemDetails } from './models';
 
-export const API_BASE = '/api/v1';
+/** Same-origin in the browser; the full server address in the Android app. */
+export const API_BASE = `${environment.apiBaseUrl}/api/v1`;
 
 type QueryValue = string | number | boolean | null | undefined;
 

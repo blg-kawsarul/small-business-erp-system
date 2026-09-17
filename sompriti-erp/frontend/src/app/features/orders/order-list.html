@@ -1,0 +1,145 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ title() }}</h1>
+      @if (!layout.isHandset()) {
+        <div class="subtitle">
+          @if (auth.isUser()) { Orders for {{ kind() === 'sales' ? auth.user()?.customerName : auth.user()?.supplierName }} }
+          @else { Draft orders do not affect stock. Finalize to post stock; payments are added to final orders. }
+        </div>
+      }
+    </div>
+    @if (canCreate() && !layout.isHandset()) {
+      <div class="actions">
+        <a mat-flat-button [routerLink]="meta().route + '/new'"><mat-icon>add</mat-icon>New {{ meta().singular.toLowerCase() }}</a>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <!-- ------------------------------------------------ filters -->
+    @if (layout.isHandset()) {
+      <div class="toolbar">
+        <mat-form-field class="search" subscriptSizing="dynamic">
+          <mat-icon matPrefix>search</mat-icon>
+          <mat-label>Order no. or {{ meta().partyLabel.toLowerCase() }}</mat-label>
+          <input matInput (input)="list.search($any($event.target).value)" />
+        </mat-form-field>
+      </div>
+      <div class="filter-bar">
+        <div class="chips">
+          @for (s of statuses; track s) {
+            <button mat-button class="chip" [class.on]="status() === s" (click)="setStatus(s)">{{ statusLabel(s) }}</button>
+          }
+        </div>
+        <button mat-icon-button class="filter-button" [class.has-filters]="filterCount() > 0" (click)="openFilters()" aria-label="More filters">
+          <mat-icon>tune</mat-icon>
+          @if (filterCount() > 0) { <span class="badge">{{ filterCount() }}</span> }
+        </button>
+      </div>
+    } @else {
+      <div class="toolbar">
+        <mat-button-toggle-group [value]="status()" (change)="setStatus($event.value)" hideSingleSelectionIndicator>
+          @for (s of statuses; track s) { <mat-button-toggle [value]="s">{{ statusLabel(s) }}</mat-button-toggle> }
+        </mat-button-toggle-group>
+        <mat-form-field class="search" subscriptSizing="dynamic">
+          <mat-icon matPrefix>search</mat-icon>
+          <mat-label>Order no. or {{ meta().partyLabel.toLowerCase() }}</mat-label>
+          <input matInput (input)="list.search($any($event.target).value)" />
+        </mat-form-field>
+        @if (!auth.isUser()) {
+          <div style="flex: 1 1 240px; max-width: 320px">
+            <app-search-select [label]="meta().partyLabel" [control]="party" [fetch]="fetchParties" [initialLabel]="partyLabel" subscript="dynamic" (selected)="applyFilters()" />
+          </div>
+          <mat-form-field subscriptSizing="dynamic" style="width: 170px">
+            <mat-label>Company</mat-label>
+            <mat-select [formControl]="company" (selectionChange)="applyFilters()">
+              <mat-option [value]="null">All companies</mat-option>
+              @for (c of companies(); track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+        }
+        <mat-form-field subscriptSizing="dynamic">
+          <mat-label>Order date</mat-label>
+          <mat-date-range-input [rangePicker]="picker">
+            <input matStartDate [formControl]="from" placeholder="From" />
+            <input matEndDate [formControl]="to" placeholder="To" (dateChange)="applyFilters()" />
+          </mat-date-range-input>
+          <mat-datepicker-toggle matIconSuffix [for]="picker" />
+          <mat-date-range-picker #picker />
+        </mat-form-field>
+        <button mat-button (click)="clearFilters()">Clear</button>
+      </div>
+    }
+
+    @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+    <!-- ------------------------------------------------ mobile cards -->
+    @if (layout.isHandset()) {
+      <div class="m-list">
+        @for (o of list.items(); track o.uuid) {
+          <a class="m-card" [routerLink]="[meta().route, o.uuid]">
+            <div class="m-card-head">
+              <div>
+                <div class="m-title">{{ auth.isUser() ? ('#' + o.orderNumber) : o.partyName }}</div>
+                <div class="m-sub">
+                  @if (!auth.isUser()) { #{{ o.orderNumber }} · }{{ o.orderDate | date: 'dd MMM yyyy' }}
+                </div>
+              </div>
+              <div class="m-right">
+                <span class="m-amount">{{ o.totalAmount | money }}</span>
+                <app-status [value]="o.postingStatus" />
+              </div>
+            </div>
+            <div class="m-meta">
+              <div><span class="k">Company</span><span class="v">{{ o.companyName }}</span></div>
+              <div><span class="k">Paid</span><span class="v">{{ o.totalPaidAmount | money: false }}</span></div>
+              <div>
+                <span class="k">Due</span>
+                <span class="v" [class.negative]="o.postingStatus === 'FINAL' && o.dueAmount > 0">
+                  {{ o.postingStatus === 'FINAL' ? (o.dueAmount | money: false) : '—' }}
+                </span>
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    } @else {
+      <!-- ------------------------------------------------ desktop table -->
+      <div class="table-wrap">
+        <table mat-table [dataSource]="list.items()" matSort matSortActive="orderDate" matSortDirection="desc" (matSortChange)="list.onSort($event)">
+          <ng-container matColumnDef="orderNumber"><th mat-header-cell *matHeaderCellDef mat-sort-header>Order no.</th><td mat-cell *matCellDef="let o"><a [routerLink]="[meta().route, o.uuid]">#{{ o.orderNumber }}</a></td></ng-container>
+          <ng-container matColumnDef="orderDate"><th mat-header-cell *matHeaderCellDef mat-sort-header>Date</th><td mat-cell *matCellDef="let o" class="nowrap">{{ o.orderDate | date: 'dd MMM yyyy' }}</td></ng-container>
+          <ng-container matColumnDef="partyName"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ meta().partyLabel }}</th><td mat-cell *matCellDef="let o">{{ o.partyName }} <span class="code">{{ o.partyCode }}</span></td></ng-container>
+          <ng-container matColumnDef="company"><th mat-header-cell *matHeaderCellDef>Company</th><td mat-cell *matCellDef="let o">{{ o.companyName }}</td></ng-container>
+          <ng-container matColumnDef="paymentType"><th mat-header-cell *matHeaderCellDef>Payment</th><td mat-cell *matCellDef="let o">{{ o.paymentType | label }}</td></ng-container>
+          <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let o"><app-status [value]="o.postingStatus" /></td></ng-container>
+          <ng-container matColumnDef="totalAmount"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Total</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalAmount | money }}</td></ng-container>
+          <ng-container matColumnDef="paid"><th mat-header-cell *matHeaderCellDef class="num">Paid</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalPaidAmount | money }}</td></ng-container>
+          <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef class="num">Due</th>
+            <td mat-cell *matCellDef="let o" class="num nowrap" [class.negative]="o.postingStatus === 'FINAL' && o.dueAmount > 0">{{ o.postingStatus === 'FINAL' ? (o.dueAmount | money) : '-' }}</td></ng-container>
+          <tr mat-header-row *matHeaderRowDef="columns()"></tr>
+          <tr mat-row class="clickable" *matRowDef="let row; columns: columns()" (click)="open(row)"></tr>
+        </table>
+      </div>
+    }
+
+    @if (!list.loading() && list.items().length === 0) {
+      <div class="empty">
+        <mat-icon class="empty-icon">receipt_long</mat-icon>
+        <p>{{ list.error() ?? 'No orders found.' }}</p>
+        @if (canCreate() && !list.error()) {
+          <a mat-stroked-button [routerLink]="meta().route + '/new'">Create the first one</a>
+        }
+      </div>
+    }
+
+    <app-list-footer [list]="list" />
+  </div>
+
+  @if (canCreate() && layout.isHandset()) {
+    <a mat-fab class="fab" [routerLink]="meta().route + '/new'" [attr.aria-label]="'New ' + meta().singular">
+      <mat-icon>add</mat-icon>
+    </a>
+  }
+</div>

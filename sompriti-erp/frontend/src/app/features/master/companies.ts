@@ -5,29 +5,36 @@ import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angu
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSortModule } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../core/api.service';
+import { LayoutService } from '../../core/layout.service';
 import { Company, Paged } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 
 @Component({
   selector: 'app-companies',
-  imports: [MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule],
+  imports: [MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
           <h1>Companies</h1>
-          <div class="subtitle">Companies shown on purchase and sales orders and printed documents</div>
+          @if (!layout.isHandset()) {
+            <div class="subtitle">Companies shown on purchase and sales orders and printed documents</div>
+          }
         </div>
-        <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon>New company</button></div>
+        @if (!layout.isHandset()) {
+          <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon>New company</button></div>
+        }
       </div>
+
       <div class="card">
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
@@ -37,31 +44,61 @@ import { ListState } from '../../shared/list-state';
           </mat-form-field>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
-        <div class="table-wrap">
-          <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
-            <ng-container matColumnDef="companyCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let c" class="code">{{ c.companyCode }}</td></ng-container>
-            <ng-container matColumnDef="companyName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let c">{{ c.companyName }}</td></ng-container>
-            <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef mat-sort-header>City</th><td mat-cell *matCellDef="let c">{{ c.city }}</td></ng-container>
-            <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Phone</th><td mat-cell *matCellDef="let c">{{ c.phoneNumber }}</td></ng-container>
-            <ng-container matColumnDef="license"><th mat-header-cell *matHeaderCellDef>License</th><td mat-cell *matCellDef="let c">{{ c.licenseNumber }}</td></ng-container>
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let c" class="num nowrap">
-                <button mat-icon-button matTooltip="Edit" (click)="edit(c)"><mat-icon>edit</mat-icon></button>
-                <button mat-icon-button matTooltip="Delete" (click)="remove(c)"><mat-icon>delete</mat-icon></button>
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          </table>
-        </div>
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (c of list.items(); track c.uuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ c.companyName }}</div>
+                    <div class="m-sub">{{ c.companyCode }}@if (c.phoneNumber) { · {{ c.phoneNumber }} }</div>
+                  </div>
+                  <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
+                  <mat-menu #menu="matMenu">
+                    <button mat-menu-item (click)="edit(c)"><mat-icon>edit</mat-icon>Edit</button>
+                    <button mat-menu-item (click)="remove(c)"><mat-icon>delete</mat-icon>Delete</button>
+                  </mat-menu>
+                </div>
+                @if (c.addressLine || c.city) { <div class="m-sub address">{{ c.addressLine }}@if (c.addressLine && c.city) {, }{{ c.city }}</div> }
+                @if (c.licenseNumber) { <div class="m-sub">License: {{ c.licenseNumber }}</div> }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
+              <ng-container matColumnDef="companyCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let c" class="code">{{ c.companyCode }}</td></ng-container>
+              <ng-container matColumnDef="companyName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let c">{{ c.companyName }}</td></ng-container>
+              <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef mat-sort-header>City</th><td mat-cell *matCellDef="let c">{{ c.city }}</td></ng-container>
+              <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Phone</th><td mat-cell *matCellDef="let c">{{ c.phoneNumber }}</td></ng-container>
+              <ng-container matColumnDef="license"><th mat-header-cell *matHeaderCellDef>License</th><td mat-cell *matCellDef="let c">{{ c.licenseNumber }}</td></ng-container>
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let c" class="num nowrap">
+                  <button mat-icon-button matTooltip="Edit" (click)="edit(c)"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button matTooltip="Delete" (click)="remove(c)"><mat-icon>delete</mat-icon></button>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="columns"></tr>
+              <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            </table>
+          </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No companies yet. Add your first company to start creating orders.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[10, 20, 50]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" [pageSizes]="[10, 20, 50]" />
       </div>
+
+      @if (layout.isHandset()) {
+        <button mat-fab class="fab" aria-label="New company" (click)="edit()"><mat-icon>add</mat-icon></button>
+      }
     </div>
   `,
+  styles: `.address { margin-top: 8px; }`,
 })
 export class CompaniesPage implements OnInit {
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly dialog = inject(MatDialog);
   private readonly notify = inject(NotifyService);
@@ -73,8 +110,8 @@ export class CompaniesPage implements OnInit {
   }
 
   edit(company?: Company): void {
-    this.dialog.open(CompanyDialog, { data: company ?? null, width: '640px' }).afterClosed().subscribe((saved) => {
-      if (saved) this.list.reload();
+    this.dialog.open(CompanyDialog, this.layout.dialog(company ?? null)).afterClosed().subscribe((saved) => {
+      if (saved) this.list.resetToFirstPage();
     });
   }
 
@@ -83,7 +120,7 @@ export class CompaniesPage implements OnInit {
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`/companies/${c.uuid}`, { revision: c.revision }).subscribe({
-          next: () => { this.notify.success('Company deleted.'); this.list.reload(); },
+          next: () => { this.notify.success('Company deleted.'); this.list.resetToFirstPage(); },
           error: (e) => this.notify.error(e),
         });
       });

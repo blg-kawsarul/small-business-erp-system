@@ -6,14 +6,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../../core/api.service';
+import { AppBrand } from '../../shared/app-brand';
 
 @Component({
   selector: 'app-forgot-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AppBrand],
   template: `
     <div class="auth-wrap">
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <div class="brand"><mat-icon>inventory_2</mat-icon> Sompriti ERP</div>
+        <app-brand />
         <h1>Forgot password</h1>
         @if (sent()) {
           <p>If an account exists for <strong>{{ form.value.email }}</strong>, we have emailed a link to reset your password. The link expires in 30 minutes.</p>

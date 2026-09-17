@@ -8,14 +8,15 @@ import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dial
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { ApiService, dateToIso } from '../../core/api.service';
+import { LayoutService } from '../../core/layout.service';
 import { AdjustmentReason, AdjustmentType, Paged, ProductDropdownItem, StockAdjustment } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { LabelPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
@@ -23,16 +24,21 @@ import { StatusChip } from '../../shared/status-chip';
 
 @Component({
   selector: 'app-stock-adjustments',
-  imports: [DatePipe, MatTableModule, MatPaginatorModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, LabelPipe, QtyPipe, StatusChip],
+  imports: [DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, LabelPipe, QtyPipe, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
           <h1>Stock adjustments</h1>
-          <div class="subtitle">Opening stock, damage, loss and corrections. Adjustments post immediately and cannot be edited.</div>
+          @if (!layout.isHandset()) {
+            <div class="subtitle">Opening stock, damage, loss and corrections. Adjustments post immediately and cannot be edited.</div>
+          }
         </div>
-        <div class="actions"><button mat-flat-button (click)="create()"><mat-icon>add</mat-icon>New adjustment</button></div>
+        @if (!layout.isHandset()) {
+          <div class="actions"><button mat-flat-button (click)="create()"><mat-icon>add</mat-icon>New adjustment</button></div>
+        }
       </div>
+
       <div class="card">
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
@@ -42,26 +48,60 @@ import { StatusChip } from '../../shared/status-chip';
           </mat-form-field>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
-        <div class="table-wrap">
-          <table mat-table [dataSource]="list.items()">
-            <ng-container matColumnDef="number"><th mat-header-cell *matHeaderCellDef>No.</th><td mat-cell *matCellDef="let a" class="code">{{ a.adjustmentNumber }}</td></ng-container>
-            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let a" class="nowrap">{{ a.adjustmentDate | date: 'dd MMM yyyy' }}</td></ng-container>
-            <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let a">{{ a.productName }} <span class="code">{{ a.productCode }}</span></td></ng-container>
-            <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let a"><app-status [value]="a.adjustmentType" /></td></ng-container>
-            <ng-container matColumnDef="qty"><th mat-header-cell *matHeaderCellDef class="num">Qty (pcs)</th><td mat-cell *matCellDef="let a" class="num">{{ a.quantityPcs | qty }}</td></ng-container>
-            <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>Reason</th><td mat-cell *matCellDef="let a">{{ a.reason | label }}@if (a.note) { <div class="muted">{{ a.note }}</div> }</td></ng-container>
-            <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>By</th><td mat-cell *matCellDef="let a" class="muted">{{ a.createdByUserName }}</td></ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          </table>
-        </div>
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (a of list.items(); track a.uuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ a.productName }}</div>
+                    <div class="m-sub">#{{ a.adjustmentNumber }} · {{ a.adjustmentDate | date: 'dd MMM yyyy' }}</div>
+                  </div>
+                  <div class="m-right">
+                    <span class="m-amount" [class.positive]="a.adjustmentType === 'INCREASE'" [class.negative]="a.adjustmentType === 'DECREASE'">
+                      {{ a.adjustmentType === 'INCREASE' ? '+' : '-' }}{{ a.quantityPcs | qty }}
+                    </span>
+                    <app-status [value]="a.adjustmentType" />
+                  </div>
+                </div>
+                <div class="m-meta two">
+                  <div><span class="k">Reason</span><span class="v">{{ a.reason | label }}</span></div>
+                  <div><span class="k">By</span><span class="v">{{ a.createdByUserName }}</span></div>
+                </div>
+                @if (a.note) { <div class="m-sub note">{{ a.note }}</div> }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table mat-table [dataSource]="list.items()">
+              <ng-container matColumnDef="number"><th mat-header-cell *matHeaderCellDef>No.</th><td mat-cell *matCellDef="let a" class="code">{{ a.adjustmentNumber }}</td></ng-container>
+              <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let a" class="nowrap">{{ a.adjustmentDate | date: 'dd MMM yyyy' }}</td></ng-container>
+              <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let a">{{ a.productName }} <span class="code">{{ a.productCode }}</span></td></ng-container>
+              <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let a"><app-status [value]="a.adjustmentType" /></td></ng-container>
+              <ng-container matColumnDef="qty"><th mat-header-cell *matHeaderCellDef class="num">Qty (pcs)</th><td mat-cell *matCellDef="let a" class="num">{{ a.quantityPcs | qty }}</td></ng-container>
+              <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>Reason</th><td mat-cell *matCellDef="let a">{{ a.reason | label }}@if (a.note) { <div class="muted">{{ a.note }}</div> }</td></ng-container>
+              <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>By</th><td mat-cell *matCellDef="let a" class="muted">{{ a.createdByUserName }}</td></ng-container>
+              <tr mat-header-row *matHeaderRowDef="columns"></tr>
+              <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            </table>
+          </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No adjustments yet. Use an Opening stock adjustment to enter existing stock.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[20, 50, 100]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" />
       </div>
+
+      @if (layout.isHandset()) {
+        <button mat-fab class="fab" aria-label="New adjustment" (click)="create()"><mat-icon>add</mat-icon></button>
+      }
     </div>
   `,
+  styles: `.note { margin-top: 8px; }`,
 })
 export class StockAdjustmentsPage implements OnInit {
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly dialog = inject(MatDialog);
   readonly columns = ['number', 'date', 'product', 'type', 'qty', 'reason', 'user'];
@@ -72,7 +112,7 @@ export class StockAdjustmentsPage implements OnInit {
   }
 
   create(): void {
-    this.dialog.open(AdjustmentDialog, { width: '560px' }).afterClosed().subscribe((ok) => ok && this.list.reload());
+    this.dialog.open(AdjustmentDialog, this.layout.dialog(null, '560px')).afterClosed().subscribe((ok) => ok && this.list.resetToFirstPage());
   }
 }
 

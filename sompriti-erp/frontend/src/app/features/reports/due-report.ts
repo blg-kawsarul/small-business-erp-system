@@ -1,13 +1,14 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
 import { OrderKind, OrderListItem, Paged } from '../../core/models';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe } from '../../shared/pipes';
 import { orderMeta } from '../orders/order-kind';
@@ -15,7 +16,7 @@ import { orderMeta } from '../orders/order-kind';
 /** Finalized orders that still have a due amount, oldest first (SRS 11.1). */
 @Component({
   selector: 'app-due-report',
-  imports: [RouterLink, DatePipe, MatTableModule, MatPaginatorModule, MatProgressBarModule, MatButtonToggleModule, MoneyPipe],
+  imports: [RouterLink, DatePipe, MatTableModule, MatProgressBarModule, MatButtonToggleModule, ListFooter, MoneyPipe],
   template: `
     <div class="page">
       <div class="page-header">
@@ -31,7 +32,31 @@ import { orderMeta } from '../orders/order-kind';
       </div>
       <div class="card">
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (o of list.items(); track o.uuid) {
+              <a class="m-card" [routerLink]="[meta().route, o.uuid]">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ o.partyName }}</div>
+                    <div class="m-sub">#{{ o.orderNumber }} · {{ o.orderDate | date: 'dd MMM yyyy' }} · {{ age(o.orderDate) }} days</div>
+                  </div>
+                  <div class="m-right">
+                    <span class="m-amount negative">{{ o.dueAmount | money }}</span>
+                    <span class="m-sub">due</span>
+                  </div>
+                </div>
+                <div class="m-meta two">
+                  <div><span class="k">Order total</span><span class="v">{{ o.totalAmount | money: false }}</span></div>
+                  <div><span class="k">Paid</span><span class="v">{{ o.totalPaidAmount | money: false }}</span></div>
+                </div>
+              </a>
+            }
+          </div>
+        } @else {
         <div class="table-wrap">
+
           <table mat-table [dataSource]="list.items()">
             <ng-container matColumnDef="orderNumber"><th mat-header-cell *matHeaderCellDef>Order</th><td mat-cell *matCellDef="let o"><a [routerLink]="[meta().route, o.uuid]">#{{ o.orderNumber }}</a></td></ng-container>
             <ng-container matColumnDef="orderDate"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let o" class="nowrap">{{ o.orderDate | date: 'dd MMM yyyy' }}</td></ng-container>
@@ -45,14 +70,17 @@ import { orderMeta } from '../orders/order-kind';
             <tr mat-row class="clickable" *matRowDef="let row; columns: columns" (click)="open(row)"></tr>
           </table>
         </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'Nothing is due.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[20, 50, 100]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" />
       </div>
     </div>
   `,
 })
 export class DueReportPage implements OnInit {
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 

@@ -1,5 +1,5 @@
 -- =====================================================================
--- Sompriti ERP - initial schema
+-- Enterprise Resource Planning - initial schema
 -- Conventions: uuid primary keys, snake_case, enums stored as varchar
 -- with CHECK constraints, money numeric(18,2), quantities integer (pcs).
 -- =====================================================================

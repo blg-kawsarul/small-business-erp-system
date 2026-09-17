@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../../core/api.service';
 import { controlError, passwordValidator } from '../../shared/form-errors';
+import { AppBrand } from '../../shared/app-brand';
 
 export function matchValidator(group: AbstractControl) {
   const a = group.get('newPassword')?.value;
@@ -17,11 +18,11 @@ export function matchValidator(group: AbstractControl) {
 
 @Component({
   selector: 'app-reset-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AppBrand],
   template: `
     <div class="auth-wrap">
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <div class="brand"><mat-icon>inventory_2</mat-icon> Sompriti ERP</div>
+        <app-brand />
         <h1>Set a new password</h1>
         @if (done()) {
           <p>Your password has been reset. You can now log in with the new password.</p>
