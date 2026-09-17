@@ -10,6 +10,7 @@ import { RouterLink } from '@angular/router';
 import type { Chart } from 'chart.js';
 import { ApiService, errorMessage } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
 import { Dashboard, DropdownItem, OrderListItem } from '../../core/models';
 import { MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
 import { StatusChip } from '../../shared/status-chip';
@@ -22,6 +23,7 @@ import { StatusChip } from '../../shared/status-chip';
 })
 export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
 
   readonly data = signal<Dashboard | null>(null);

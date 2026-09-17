@@ -16,6 +16,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', title: 'Dashboard', loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.DashboardPage) },
       { path: 'change-password', title: 'Change password', loadComponent: () => import('./features/auth/change-password').then((m) => m.ChangePasswordPage) },
+      { path: 'more', title: 'Menu', loadComponent: () => import('./features/more/more').then((m) => m.MorePage) },
       { path: 'profile', title: 'My profile', loadComponent: () => import('./features/profile/profile').then((m) => m.ProfilePage) },
 
       // master data

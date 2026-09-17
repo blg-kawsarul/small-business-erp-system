@@ -7,12 +7,18 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { ApiService, dateToIso, errorMessage } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
 import { CompanyReportRow } from '../../core/models';
 import { MoneyPipe } from '../../shared/pipes';
 
 @Component({
   selector: 'app-company-report',
   imports: [ReactiveFormsModule, MatTableModule, MatFormFieldModule, MatDatepickerModule, MatButtonModule, MatProgressBarModule, MoneyPipe],
+  styles: `
+    .block { margin-top: 10px; }
+    .block-title { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--erp-faint); }
+    .block .m-meta { margin-top: 4px; }
+  `,
   template: `
     <div class="page">
       <div class="page-header">
@@ -35,7 +41,42 @@ import { MoneyPipe } from '../../shared/pipes';
           <button mat-button (click)="from.setValue(null); to.setValue(null); load()">Clear</button>
         </div>
         @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (r of rows(); track r.companyUuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ r.companyName }}</div>
+                    <div class="m-sub">{{ r.companyCode }}</div>
+                  </div>
+                </div>
+                <div class="block">
+                  <div class="block-title">Sales</div>
+                  <div class="m-meta">
+                    <div><span class="k">Orders</span><span class="v">{{ r.salesCount }}</span></div>
+                    <div><span class="k">Total</span><span class="v">{{ r.salesTotal | money: false }}</span></div>
+                    <div><span class="k">Due</span><span class="v negative">{{ r.salesDue | money: false }}</span></div>
+                  </div>
+                </div>
+                @if (r.purchaseCount !== null) {
+                  <div class="block">
+                    <div class="block-title">Purchases</div>
+                    <div class="m-meta">
+                      <div><span class="k">Orders</span><span class="v">{{ r.purchaseCount }}</span></div>
+                      <div><span class="k">Total</span><span class="v">{{ r.purchaseTotal | money: false }}</span></div>
+                      <div><span class="k">Due</span><span class="v negative">{{ r.purchaseDue | money: false }}</span></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+            @if (!loading() && rows().length === 0) { <div class="empty">No data for the selected dates.</div> }
+          </div>
+        } @else {
         <div class="table-wrap">
+
           <table mat-table [dataSource]="rows()">
             <ng-container matColumnDef="company"><th mat-header-cell *matHeaderCellDef>Company</th><td mat-cell *matCellDef="let r">{{ r.companyName }} <span class="code">{{ r.companyCode }}</span></td><td mat-footer-cell *matFooterCellDef><strong>Total</strong></td></ng-container>
             <ng-container matColumnDef="salesCount"><th mat-header-cell *matHeaderCellDef class="num">Sales orders</th><td mat-cell *matCellDef="let r" class="num">{{ r.salesCount }}</td><td mat-footer-cell *matFooterCellDef class="num">{{ sum('salesCount') }}</td></ng-container>
@@ -51,6 +92,8 @@ import { MoneyPipe } from '../../shared/pipes';
             <tr mat-footer-row *matFooterRowDef="columns()"></tr>
           </table>
         </div>
+        }
+
         @if (error()) { <div class="empty negative">{{ error() }}</div> }
       </div>
     </div>
@@ -58,6 +101,7 @@ import { MoneyPipe } from '../../shared/pipes';
 })
 export class CompanyReportPage implements OnInit {
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   readonly from = new FormControl<Date | null>(null);
   readonly to = new FormControl<Date | null>(null);

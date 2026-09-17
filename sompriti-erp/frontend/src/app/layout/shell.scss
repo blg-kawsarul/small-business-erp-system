@@ -1,0 +1,91 @@
+/* ------------------------------------------------ desktop */
+.container { height: 100vh; background: var(--erp-bg); }
+.sidenav { width: 250px; border-right: 1px solid var(--erp-border); background: #fff; }
+/* the rail is a column so the credit can sit at the very bottom */
+.sidenav ::ng-deep .mat-drawer-inner-container { display: flex; flex-direction: column; }
+/* the product name runs long, so the rail lock-up wraps instead of clipping */
+.brand { display: flex; align-items: center; gap: 10px; padding: 18px 20px 10px; font-weight: 700; font-size: 15px; line-height: 1.3; color: var(--mat-sys-primary); }
+.brand mat-icon { flex: none; }
+.group-title { padding: 14px 20px 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--erp-faint); }
+mat-nav-list { padding-top: 0; }
+a.active { background: var(--mat-sys-secondary-container); border-radius: 999px; }
+.credit {
+  /* last in the rail, and pinned so a long menu never scrolls it out of sight */
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  font: inherit; text-align: left; background: #fff; border: 0; border-top: 1px solid var(--erp-border); cursor: pointer;
+  .app { font-size: 12px; font-weight: 600; color: var(--erp-muted); }
+  .ver { font-weight: 400; color: var(--erp-faint); }
+  .by { font-size: 11.5px; color: var(--erp-faint); }
+  &:hover .by { color: var(--mat-sys-primary); }
+}
+
+.topbar { position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid var(--erp-border); height: 56px; }
+.spacer { flex: 1; }
+.user-button .user-name { margin: 0 6px; }
+.role { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--erp-chip-info-bg); color: var(--erp-chip-info-fg); }
+
+/* ------------------------------------------------ mobile */
+.mobile-shell { display: flex; flex-direction: column; min-height: 100dvh; background: var(--erp-bg); }
+
+.mobile-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 56px;
+  padding: var(--erp-safe-top) 6px 0 6px;
+  box-sizing: content-box;
+  background: #fff;
+  border-bottom: 1px solid var(--erp-border);
+}
+.bar-logo { color: var(--mat-sys-primary); margin-left: 10px; }
+.bar-title { font-size: 16px; font-weight: 620; margin-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the product name is long, so the brand line sits a little smaller than a page title */
+.bar-title.bar-brand { color: var(--mat-sys-primary); font-size: 14.5px; }
+.menu-user { padding: 10px 16px; .name { font-weight: 600; } .muted { font-size: 12px; } }
+
+.mobile-content { flex: 1; }
+
+.bottom-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 25;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  height: var(--erp-bottom-nav);
+  padding-bottom: var(--erp-safe-bottom);
+  background: #fff;
+  border-top: 1px solid var(--erp-border);
+  box-shadow: 0 -1px 8px rgba(16, 24, 40, .06);
+}
+.bottom-nav .tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding-top: 6px;
+  text-decoration: none;
+  color: var(--erp-muted);
+  font-size: 11px;
+  font-weight: 500;
+  position: relative;
+}
+.bottom-nav .tab mat-icon { font-size: 23px; width: 23px; height: 23px; }
+.bottom-nav .tab.active { color: var(--mat-sys-primary); }
+.bottom-nav .tab.active mat-icon {
+  background: var(--mat-sys-secondary-container);
+  border-radius: 999px;
+  padding: 2px 14px;
+  width: auto;
+  min-width: 23px;
+}
+.bottom-nav .tab:active { background: rgba(0, 0, 0, .03); }

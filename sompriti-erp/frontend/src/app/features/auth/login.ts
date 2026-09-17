@@ -8,14 +8,16 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { AppCredit } from '../../shared/app-credit';
+import { AppBrand } from '../../shared/app-brand';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AppCredit, AppBrand],
   template: `
     <div class="auth-wrap">
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <div class="brand"><mat-icon>inventory_2</mat-icon> Sompriti ERP</div>
+        <app-brand />
         <h1>Log in</h1>
         <p class="muted">Welcome back. Enter your email and password.</p>
         @if (expired) { <p class="negative">Your session expired. Please log in again.</p> }
@@ -41,6 +43,7 @@ import { AuthService } from '../../core/auth.service';
           <a routerLink="/register">Create an account</a>
         </div>
       </form>
+      <app-credit />
     </div>
   `,
 })

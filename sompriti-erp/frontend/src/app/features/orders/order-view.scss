@@ -2,15 +2,67 @@
 .title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .busy { margin: -8px 0 8px; }
 .void-banner { display: flex; gap: 12px; align-items: center; background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); margin-bottom: 16px; }
+
 .summary { display: grid; grid-template-columns: 1fr 1.2fr 0.9fr; gap: 16px; margin-bottom: 16px; }
 .party-name { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
 .notes { white-space: pre-line; }
-.totals { display: flex; flex-direction: column; gap: 8px; justify-content: center;
+.totals {
+  display: flex; flex-direction: column; gap: 8px; justify-content: center;
   > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   strong { font-size: 18px; font-variant-numeric: tabular-nums; }
   .due strong { font-size: 22px; }
   .small { font-size: 12px; }
 }
+
 .section { margin-bottom: 16px; padding-bottom: 4px; }
 .pad { padding: 16px 16px 0; }
-@media (max-width: 960px) { .summary { grid-template-columns: 1fr; } }
+.count { font-weight: 500; color: var(--erp-faint); }
+
+/* Stacked rows replace the tables on phones. */
+.rows { padding: 4px 0 0; }
+.row-item {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--erp-border);
+}
+.row-item:last-child { border-bottom: 0; }
+.row-main { min-width: 0; }
+.row-title { font-size: 14.5px; font-weight: 600; }
+.row-sub { font-size: 12.5px; color: var(--erp-muted); margin-top: 2px; }
+.row-amount { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.total-row { background: #f7f9fc; }
+
+/* Primary action pinned above the bottom navigation. */
+.action-bar {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: calc(var(--erp-bottom-nav) + var(--erp-safe-bottom));
+  z-index: 20;
+  display: flex; gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, .95);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--erp-border);
+  .grow { flex: 1; }
+}
+
+@media (max-width: 840px) {
+  .summary { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+  /* keep the overflow menu on the title row instead of wrapping below it */
+  .page-header { flex-wrap: nowrap; align-items: flex-start; }
+  .page-header .actions { flex: none; margin: -6px -8px 0 0; }
+  .title { font-size: 19px; gap: 8px; }
+  .totals strong { white-space: nowrap; }
+  .totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 10px; padding: 14px 12px;
+    > div { flex-direction: column; align-items: flex-start; gap: 0; min-width: 0; }
+    .muted { font-size: 11.5px; }
+    strong, .due strong { font-size: 15.5px; }
+    .small { grid-column: 1 / -1; }
+  }
+  .mini-kv { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    .k { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--erp-faint); }
+    span:not(.k) { font-size: 13.5px; }
+  }
+  .notes { margin-top: 10px; font-size: 13px; }
+  /* room for the fixed action bar */
+  .page { padding-bottom: calc(80px + var(--erp-bottom-nav) + var(--erp-safe-bottom)); }
+}

@@ -5,19 +5,20 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../core/api.service';
+import { LayoutService } from '../../core/layout.service';
 import { Paged, SmsLog, SmsStatus } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { StatusChip } from '../../shared/status-chip';
 
 @Component({
   selector: 'app-sms-log',
-  imports: [DatePipe, MatTableModule, MatPaginatorModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, StatusChip],
+  imports: [DatePipe, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
@@ -43,7 +44,31 @@ import { StatusChip } from '../../shared/status-chip';
           </mat-form-field>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (s of list.items(); track s.uuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ s.recipientNumber }}</div>
+                    <div class="m-sub">{{ s.createdDate | date: 'dd MMM yyyy, h:mm a' }} · {{ s.attemptCount }} tries</div>
+                  </div>
+                  <div class="m-right">
+                    <app-status [value]="s.status" />
+                    @if (s.status === 'FAILED' || s.status === 'SKIPPED') {
+                      <button mat-icon-button matTooltip="Retry" (click)="retry(s)"><mat-icon>replay</mat-icon></button>
+                    }
+                  </div>
+                </div>
+                <div class="message">{{ s.message }}</div>
+                @if (s.lastError) { <div class="negative small">{{ s.lastError }}</div> }
+              </div>
+            }
+          </div>
+        } @else {
         <div class="table-wrap">
+
           <table mat-table [dataSource]="list.items()">
             <ng-container matColumnDef="created"><th mat-header-cell *matHeaderCellDef>Queued</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.createdDate | date: 'dd MMM, h:mm a' }}</td></ng-container>
             <ng-container matColumnDef="to"><th mat-header-cell *matHeaderCellDef>To</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.recipientNumber }}</td></ng-container>
@@ -61,14 +86,20 @@ import { StatusChip } from '../../shared/status-chip';
             <tr mat-row *matRowDef="let row; columns: columns"></tr>
           </table>
         </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No SMS messages.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[20, 50, 100]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" />
       </div>
     </div>
   `,
-  styles: `.small { font-size: 12px; }`,
+  styles: `
+    .small { font-size: 12px; }
+    .message { margin-top: 10px; font-size: 13px; line-height: 1.45; color: var(--erp-muted); }
+  `,
 })
 export class SmsLogPage implements OnInit {
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotifyService);
   readonly status = signal<SmsStatus | ''>('');

@@ -1,0 +1,93 @@
+@if (layout.isHandset()) {
+  <!-- ------------------------------------------------ phone / tablet layout -->
+  <div class="mobile-shell">
+    <header class="mobile-bar">
+      @if (canGoBack()) {
+        <button mat-icon-button aria-label="Back" (click)="back()"><mat-icon>arrow_back</mat-icon></button>
+        <span class="bar-title">{{ pageTitle() }}</span>
+      } @else {
+        <mat-icon class="bar-logo">inventory_2</mat-icon>
+        <span class="bar-title bar-brand">{{ app.name }}</span>
+      }
+      <span class="spacer"></span>
+      @if (auth.user(); as user) {
+        <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Account"><mat-icon>account_circle</mat-icon></button>
+        <mat-menu #userMenu="matMenu" xPosition="before">
+          <div class="menu-user">
+            <div class="name">{{ user.userName }}</div>
+            <div class="muted">{{ user.role | label }}</div>
+          </div>
+          <mat-divider />
+          <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>My profile</a>
+          <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
+          <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>About</button>
+          <mat-divider />
+          <button mat-menu-item (click)="auth.logout()"><mat-icon>logout</mat-icon>Log out</button>
+        </mat-menu>
+      }
+    </header>
+
+    <main class="mobile-content">
+      <router-outlet />
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main">
+      @for (tab of tabs(); track tab.link + tab.label) {
+        <a [routerLink]="tab.link" class="tab" [class.active]="isTabActive(tab)">
+          <mat-icon>{{ tab.icon }}</mat-icon>
+          <span>{{ tab.short ?? tab.label }}</span>
+        </a>
+      }
+    </nav>
+  </div>
+} @else {
+  <!-- ------------------------------------------------ desktop layout -->
+  <mat-sidenav-container class="container">
+    <mat-sidenav mode="side" opened class="sidenav">
+      <div class="brand">
+        <mat-icon>inventory_2</mat-icon>
+        <span>{{ app.name }}</span>
+      </div>
+      @for (group of groups(); track group.title) {
+        <div class="group-title">{{ group.title }}</div>
+        <mat-nav-list>
+          @for (item of group.items; track item.link + item.label) {
+            <a mat-list-item [routerLink]="item.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact ?? false }">
+              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+              <span matListItemTitle>{{ item.label }}</span>
+            </a>
+          }
+        </mat-nav-list>
+      }
+
+      <!-- Developer credit, pinned to the bottom of the navigation rail. -->
+      <button type="button" class="credit" (click)="about()" [attr.aria-label]="'About ' + app.name">
+        <span class="app">{{ app.name }} <span class="ver">v{{ app.version }}</span></span>
+        <span class="by">{{ developedBy }}</span>
+      </button>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <mat-toolbar class="topbar">
+        <span class="spacer"></span>
+        @if (auth.user(); as user) {
+          <button mat-button [matMenuTriggerFor]="deskMenu" class="user-button">
+            <mat-icon>account_circle</mat-icon>
+            <span class="user-name">{{ user.userName }}</span>
+            <span class="role">{{ user.role | label }}</span>
+          </button>
+          <mat-menu #deskMenu="matMenu" xPosition="before">
+            <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>My profile</a>
+            <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
+            <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>About</button>
+            <mat-divider />
+            <button mat-menu-item (click)="auth.logout()"><mat-icon>logout</mat-icon>Log out</button>
+          </mat-menu>
+        }
+      </mat-toolbar>
+      <main>
+        <router-outlet />
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+}

@@ -2,9 +2,9 @@
   <div class="page-header">
     <div>
       <h1>{{ greeting() }}, {{ auth.user()?.userName }}</h1>
-      <div class="subtitle">Here is what is happening in your business.</div>
+      @if (!layout.isHandset()) { <div class="subtitle">Here is what is happening in your business.</div> }
     </div>
-    @if (!auth.isUser() && companies().length > 1) {
+    @if (!auth.isUser() && companies().length > 1 && !layout.isHandset()) {
       <mat-form-field subscriptSizing="dynamic" style="width: 220px">
         <mat-label>Company</mat-label>
         <mat-select [formControl]="company" (selectionChange)="load()">

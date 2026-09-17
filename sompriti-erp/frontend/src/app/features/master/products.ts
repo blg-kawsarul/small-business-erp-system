@@ -7,7 +7,7 @@ import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angu
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule } from '@angular/material/sort';
@@ -15,26 +15,34 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
 import { Paged, Product, Uom } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
+import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 
 @Component({
   selector: 'app-products',
-  imports: [MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, MatCheckboxModule, MoneyPipe, QtyPipe],
+  imports: [
+    MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
+    MatProgressBarModule, MatTooltipModule, MatCheckboxModule, MatMenuModule, ListFooter, MoneyPipe, QtyPipe,
+  ],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
           <h1>Products</h1>
-          <div class="subtitle">Prices are per piece (PCS). Stock is always counted in pieces.</div>
+          @if (!layout.isHandset()) {
+            <div class="subtitle">Prices are per piece (PCS). Stock is always counted in pieces.</div>
+          }
         </div>
-        @if (auth.isAdmin()) {
+        @if (auth.isAdmin() && !layout.isHandset()) {
           <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon>New product</button></div>
         }
       </div>
+
       <div class="card">
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
@@ -45,36 +53,75 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
           <mat-checkbox (change)="lowOnly.set($event.checked); list.resetToFirstPage()">Low stock only</mat-checkbox>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
-        <div class="table-wrap">
-          <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
-            <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let p" class="code">{{ p.productCode }}</td></ng-container>
-            <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let p">{{ p.productName }}</td></ng-container>
-            <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>UOM</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom }}@if (p.pcsPerBox) { <span class="muted"> · {{ p.pcsPerBox }}/box</span> }</td></ng-container>
-            <ng-container matColumnDef="productPurchasePrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Purchase / pcs</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productPurchasePrice | money }}</td></ng-container>
-            <ng-container matColumnDef="productSalesPrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Sales / pcs</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productSalesPrice | money }}</td></ng-container>
-            <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock (pcs)</th>
-              <td mat-cell *matCellDef="let p" class="num" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">{{ p.currentStock | qty }}</td></ng-container>
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let p" class="num nowrap">
-                @if (auth.isAdmin()) {
-                  <button mat-icon-button matTooltip="Edit" (click)="edit(p)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button matTooltip="Delete" (click)="remove(p)"><mat-icon>delete</mat-icon></button>
-                }
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row *matRowDef="let row; columns: columns"></tr>
-          </table>
-        </div>
+
+        @if (layout.isHandset()) {
+          <div class="m-list">
+            @for (p of list.items(); track p.uuid) {
+              <div class="m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="m-title">{{ p.productName }}</div>
+                    <div class="m-sub">{{ p.productCode }} · {{ p.uom }}@if (p.pcsPerBox) { · {{ p.pcsPerBox }} pcs/box }</div>
+                  </div>
+                  <div class="m-right">
+                    <span class="m-amount" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">
+                      {{ p.currentStock | qty }} <span class="unit">pcs</span>
+                    </span>
+                    @if (auth.isAdmin()) {
+                      <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
+                      <mat-menu #menu="matMenu">
+                        <button mat-menu-item (click)="edit(p)"><mat-icon>edit</mat-icon>Edit</button>
+                        <button mat-menu-item (click)="remove(p)"><mat-icon>delete</mat-icon>Delete</button>
+                      </mat-menu>
+                    }
+                  </div>
+                </div>
+                <div class="m-meta two">
+                  <div><span class="k">Purchase / pcs</span><span class="v">{{ p.productPurchasePrice | money: false }}</span></div>
+                  <div><span class="k">Sales / pcs</span><span class="v">{{ p.productSalesPrice | money: false }}</span></div>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
+              <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let p" class="code">{{ p.productCode }}</td></ng-container>
+              <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let p">{{ p.productName }}</td></ng-container>
+              <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>UOM</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom }}@if (p.pcsPerBox) { <span class="muted"> · {{ p.pcsPerBox }}/box</span> }</td></ng-container>
+              <ng-container matColumnDef="productPurchasePrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Purchase / pcs</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productPurchasePrice | money }}</td></ng-container>
+              <ng-container matColumnDef="productSalesPrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Sales / pcs</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productSalesPrice | money }}</td></ng-container>
+              <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock (pcs)</th>
+                <td mat-cell *matCellDef="let p" class="num" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">{{ p.currentStock | qty }}</td></ng-container>
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let p" class="num nowrap">
+                  @if (auth.isAdmin()) {
+                    <button mat-icon-button matTooltip="Edit" (click)="edit(p)"><mat-icon>edit</mat-icon></button>
+                    <button mat-icon-button matTooltip="Delete" (click)="remove(p)"><mat-icon>delete</mat-icon></button>
+                  }
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="columns"></tr>
+              <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            </table>
+          </div>
+        }
+
         @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No products found.' }}</div> }
-        <mat-paginator [length]="list.total()" [pageSize]="list.query().pageSize" [pageSizeOptions]="[10, 20, 50, 100]" (page)="list.onPage($event)" />
+        <app-list-footer [list]="list" [pageSizes]="[10, 20, 50, 100]" />
       </div>
+
+      @if (auth.isAdmin() && layout.isHandset()) {
+        <button mat-fab class="fab" aria-label="New product" (click)="edit()"><mat-icon>add</mat-icon></button>
+      }
     </div>
   `,
+  styles: `.unit { font-size: 11px; font-weight: 500; color: var(--erp-muted); }`,
 })
 export class ProductsPage implements OnInit {
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly dialog = inject(MatDialog);
   private readonly notify = inject(NotifyService);
@@ -87,7 +134,7 @@ export class ProductsPage implements OnInit {
   }
 
   edit(product?: Product): void {
-    this.dialog.open(ProductDialog, { data: product ?? null, width: '640px' }).afterClosed().subscribe((saved) => saved && this.list.reload());
+    this.dialog.open(ProductDialog, this.layout.dialog(product ?? null)).afterClosed().subscribe((saved) => saved && this.list.resetToFirstPage());
   }
 
   remove(p: Product): void {
@@ -95,7 +142,7 @@ export class ProductsPage implements OnInit {
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`/products/${p.uuid}`, { revision: p.revision }).subscribe({
-          next: () => { this.notify.success('Product deleted.'); this.list.reload(); },
+          next: () => { this.notify.success('Product deleted.'); this.list.resetToFirstPage(); },
           error: (e) => this.notify.error(e),
         });
       });
@@ -116,15 +163,15 @@ export class ProductsPage implements OnInit {
             <mat-label>UOM</mat-label>
             <mat-select formControlName="uom"><mat-option value="PCS">PCS</mat-option><mat-option value="BOX">BOX</mat-option></mat-select>
           </mat-form-field>
-          <mat-form-field><mat-label>Purchase price per pcs</mat-label><input matInput type="number" min="0" step="0.01" formControlName="productPurchasePrice" /><span matTextPrefix>Tk&nbsp;</span><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Sales price per pcs</mat-label><input matInput type="number" min="0" step="0.01" formControlName="productSalesPrice" /><span matTextPrefix>Tk&nbsp;</span><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Purchase price per pcs</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Sales price per pcs</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
           <mat-form-field>
             <mat-label>Pcs per box</mat-label>
-            <input matInput type="number" min="1" step="1" formControlName="pcsPerBox" />
+            <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="pcsPerBox" />
             <mat-hint>{{ form.value.uom === 'BOX' ? 'Required for BOX' : 'Optional — enables BOX entry on orders' }}</mat-hint>
             <mat-error>{{ err('pcsPerBox', 'Pcs per box') }}</mat-error>
           </mat-form-field>
-          <mat-form-field><mat-label>Low stock alert at (pcs)</mat-label><input matInput type="number" min="0" step="1" formControlName="lowStockThreshold" /><mat-hint>Optional</mat-hint></mat-form-field>
+          <mat-form-field><mat-label>Low stock alert at (pcs)</mat-label><input matInput type="number" inputmode="numeric" min="0" step="1" formControlName="lowStockThreshold" /><mat-hint>Optional</mat-hint></mat-form-field>
         </div>
         @if (error()) { <p class="negative">{{ error() }}</p> }
       </mat-dialog-content>

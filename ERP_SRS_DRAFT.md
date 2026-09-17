@@ -3,7 +3,7 @@
 ## 1. Document Information
 
 - Document title: ERP System Software Requirements Specification
-- Version: Draft v0.3
+- Version: Draft v0.4
 - Date: 2026-09-17
 - Prepared for: Small business product, purchase, sales, customer, supplier, and stock management (Sompriti Enterprise)
 - Target market: Bangladesh (currency BDT, SMS to Bangladeshi mobile numbers only)
@@ -15,6 +15,7 @@
 | v0.1 | 2026-09-17 | Initial draft |
 | v0.2 | 2026-09-17 | Resolved open decisions (pricing basis, payment timing, opening stock, Phase 1 scope); added technology stack and deployment, permission matrix, calculation rules, order totals and due rules, void rules, stock adjustment, stock ledger, SMS (Bangladesh), email password reset, PDF printing, dashboard, authentication, API conventions, data type conventions, missing tables, and a phased build plan. Fixed inconsistencies in `revision` definition, section numbering, payment edit wording, and code uniqueness. |
 | v0.3 | 2026-09-17 | Open questions accepted with the defaults stated in this document. Section 13 updated to match the Phase 1 implementation (SQL migrations, built-in JWT handler, built-in PDF writer, Angular 22). |
+| v0.4 | 2026-09-18 | Added the mobile UI requirements (card lists, bottom navigation, full-screen sheets) and the Android app (Capacitor) packaging requirements. |
 
 ### 1.2 Key Decisions Made In v0.2
 
@@ -789,6 +790,9 @@ Retry rules:
 - List APIs shall return within 1 second for up to 100,000 orders under normal load.
 - The system shall support at least 20 concurrent users.
 - The UI shall be responsive and usable on desktop, tablet, and mobile browsers.
+- Below 840 px width the UI shall switch to a mobile layout: bottom tab navigation with a "More" menu, one card per record instead of wide tables (no horizontal scrolling), "Load more" instead of a paginator, full-screen create/edit sheets, filters in a full-screen sheet, and the primary action (save, finalize, add payment) pinned above the tab bar.
+- Touch targets shall be at least 42 px high, and numeric fields shall open the numeric keypad on phones.
+- The same Angular application shall be packagable as an Android APK (Capacitor). The packaged app reads the API address from its build configuration, opens PDFs through the device viewer, follows the Android back button, and requires the API to allow the app's WebView origin (`https://localhost`) in CORS.
 - Forms shall show inline validation messages and a clear message for server errors.
 - Amounts shall display in BDT format.
 
@@ -817,6 +821,8 @@ Retry rules:
 | Logging | ASP.NET Core console logging (collected by Railway logs) |
 | Tests | xUnit unit tests (integration tests against PostgreSQL recommended next) |
 | Frontend | Angular 22, TypeScript, standalone components, Angular Router, Reactive Forms, signals |
+| Android app | Capacitor 8 packaging of the same Angular app (APK) |
+| Fonts/icons | Inter and a Material Symbols subset bundled with the app (no internet needed for the UI) |
 | UI library | Angular Material (tables, dialogs, forms, date pickers) |
 | Charts (dashboard) | Chart.js (loaded on demand) |
 | Containerization | Docker multi-stage build |

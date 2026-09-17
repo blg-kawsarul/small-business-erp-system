@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Sompriti ERP - single container: ASP.NET Core API + Angular SPA (wwwroot)
+# Enterprise Resource Planning - single container: ASP.NET Core API + Angular SPA (wwwroot)
 # Build locally:  docker build -t sompriti-erp .
 # ---------------------------------------------------------------------------
 

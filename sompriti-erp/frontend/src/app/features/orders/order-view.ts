@@ -16,6 +16,8 @@ import { Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ApiService, dateToIso, isoToDate, problemOf } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { LayoutService } from '../../core/layout.service';
+import { PlatformService } from '../../core/platform.service';
 import { OrderDetail, OrderKind, PaymentMethod } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
@@ -34,6 +36,8 @@ export class OrderViewPage implements OnInit {
   readonly id = input.required<string>();
 
   readonly auth = inject(AuthService);
+  readonly layout = inject(LayoutService);
+  private readonly platform = inject(PlatformService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
@@ -81,7 +85,7 @@ export class OrderViewPage implements OnInit {
 
   voidOrder(): void {
     const o = this.order()!;
-    this.dialog.open(VoidDialog, { data: { order: o, kind: this.kind() }, width: '480px' }).afterClosed().subscribe((reason?: string) => {
+    this.dialog.open(VoidDialog, this.layout.dialog({ order: o, kind: this.kind() }, '480px')).afterClosed().subscribe((reason?: string) => {
       if (!reason) return;
       this.run(this.api.post<OrderDetail>(`${this.meta().api}/${o.uuid}/void`, { revision: o.revision, voidReason: reason }), `Order #${o.orderNumber} voided.`);
     });
@@ -101,7 +105,7 @@ export class OrderViewPage implements OnInit {
 
   addPayment(): void {
     const o = this.order()!;
-    this.dialog.open(PaymentDialog, { data: { order: o, api: this.meta().api }, width: '520px' }).afterClosed().subscribe((updated?: OrderDetail) => {
+    this.dialog.open(PaymentDialog, this.layout.dialog({ order: o, api: this.meta().api }, '520px')).afterClosed().subscribe((updated?: OrderDetail) => {
       if (updated) this.order.set(updated);
     });
   }
@@ -120,21 +124,18 @@ export class OrderViewPage implements OnInit {
     });
   }
 
+  /** Opens the PDF in a new tab (browser) or the system viewer (Android app). */
   pdf(download: boolean): void {
     const o = this.order()!;
     this.busy.set(true);
+    const fileName = `${this.kind() === 'sales' ? 'sales-invoice' : 'purchase-order'}-${o.orderNumber}.pdf`;
     this.api.blob(`${this.meta().api}/${o.uuid}/pdf`).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        if (download) {
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${this.kind() === 'sales' ? 'sales-invoice' : 'purchase-order'}-${o.orderNumber}.pdf`;
-          a.click();
-        } else {
-          window.open(url, '_blank', 'noopener');
+      next: async (blob) => {
+        try {
+          await this.platform.openPdf(blob, fileName, download);
+        } catch (e) {
+          this.notify.error(e);
         }
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
         this.busy.set(false);
       },
       error: (e) => { this.notify.error(e); this.busy.set(false); },

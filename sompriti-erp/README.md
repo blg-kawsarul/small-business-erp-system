@@ -1,4 +1,4 @@
-# Sompriti ERP
+# Enterprise Resource Planning
 
 Small-business ERP for purchase, sales, stock and payments (Bangladesh), built from `ERP_SRS_DRAFT.md` (v0.2).
 
@@ -6,7 +6,8 @@ Small-business ERP for purchase, sales, stock and payments (Bangladesh), built f
 |---|---|
 | API | ASP.NET Core Web API, .NET 10, C# |
 | Data | PostgreSQL + EF Core (Npgsql); schema created by versioned SQL scripts |
-| Web | Angular 22 + Angular Material |
+| Web | Angular 22 + Angular Material (responsive: tables on desktop, cards and bottom tabs on phones) |
+| Android app | Capacitor 8 (the same Angular app packaged as an APK) |
 | Hosting | Railway (one Docker service for API + web, one PostgreSQL service) |
 
 ## Features
@@ -21,6 +22,53 @@ Small-business ERP for purchase, sales, stock and payments (Bangladesh), built f
 - Dashboard, customer / supplier / company / due reports
 - Soft delete everywhere, full audit columns
 
+## Android app (APK)
+
+The Angular app is packaged for Android with [Capacitor](https://capacitorjs.com). The APK contains the web app and
+talks to the same API over the network, so the server must be reachable from the phone (deploy it to Railway first,
+or use your computer's LAN address while testing).
+
+**One-time setup**
+
+1. Install [Android Studio](https://developer.android.com/studio) (it brings the Android SDK) and a JDK 21
+   (`brew install --cask temurin@21` on macOS). Open Android Studio once and let it finish installing the SDK.
+2. Point the build at your API: edit `frontend/src/environments/environment.mobile.ts` and set
+   `apiBaseUrl` to your server, e.g. `https://sompriti-erp.up.railway.app`.
+3. Allow the app's origin on the API: set `Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost`
+   (Railway → Variables, or `appsettings.Development.json` locally). Without this the app cannot log in.
+4. Create the Android project once:
+
+   ```bash
+   cd frontend
+   npm install
+   npm run build:mobile
+   npx cap add android
+   npx @capacitor/assets generate --android   # app icon and splash screen from resources/
+   ```
+
+**Build the APK**
+
+```bash
+cd frontend
+npm run android:apk       # build + sync + ./gradlew assembleDebug
+# APK: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Copy that file to an Android phone and open it (allow "install unknown apps"). For Play Store or a signed release build:
+
+```bash
+keytool -genkey -v -keystore sompriti.keystore -alias sompriti -keyalg RSA -keysize 2048 -validity 10000
+cd android && ./gradlew assembleRelease   # configure signing in android/app/build.gradle first
+```
+
+`npm run android:open` opens the project in Android Studio, where you can run it on an emulator or a connected phone.
+
+**Testing against your Mac instead of Railway**
+
+Set `apiBaseUrl` to `http://<your-mac-ip>:5080` (find it with `ipconfig getifaddr en0`), run the API with
+`ASPNETCORE_URLS=http://0.0.0.0:5080`, and allow plain http in `android/app/src/main/AndroidManifest.xml`
+by adding `android:usesCleartextTraffic="true"` to the `<application>` tag. Use https in production.
+
 ## Repository layout
 
 ```
@@ -30,7 +78,14 @@ backend/
   src/Sompriti.Erp.Infrastructure  EF Core context, SQL migrations, JWT, password hashing, SMS/email providers, PDF
   src/Sompriti.Erp.Api             controllers, authentication handler, error handling, Program.cs
   tests/Sompriti.Erp.Tests         xUnit tests (rules, JWT, PDF, connection string)
-frontend/                          Angular app
+frontend/
+  src/app/core                     API client, auth, layout (phone vs desktop), Capacitor bridge
+  src/app/shared                   reusable pieces: search select, list state, list footer, pipes
+  src/app/layout                   app shell: sidebar on desktop, top bar + bottom tabs on phones
+  src/app/features                 screens (auth, dashboard, master data, stock, orders, reports, users, SMS)
+  public/fonts                     bundled Inter + Material Symbols subset (works offline)
+  tools/build-icon-font.py         regenerates the icon font subset after adding new icons
+  capacitor.config.ts              Android app settings
 Dockerfile                         builds web + API into one image
 railway.json                       Railway build/deploy settings
 docker-compose.yml                 local PostgreSQL (and optional full app)

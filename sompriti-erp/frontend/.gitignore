@@ -42,3 +42,7 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Capacitor native projects (generated with: npx cap add android)
+/android
+/ios

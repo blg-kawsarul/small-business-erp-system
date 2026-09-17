@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { ApiService, dateToIso, isoToDate, problemOf } from '../../core/api.service';
+import { LayoutService } from '../../core/layout.service';
 import {
   DropdownItem, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product, ProductDropdownItem, QuantityType, StockShortage,
 } from '../../core/models';
@@ -55,6 +56,7 @@ export class OrderEditorPage implements OnInit {
   readonly kind = input<OrderKind>('sales');
   readonly id = input<string | undefined>(undefined);
 
+  readonly layout = inject(LayoutService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly notify = inject(NotifyService);
