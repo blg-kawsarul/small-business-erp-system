@@ -1,0 +1,189 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>
+        @if (order(); as o) { Edit {{ meta().singular.toLowerCase() }} #{{ o.orderNumber }} } @else { New {{ meta().singular.toLowerCase() }} }
+      </h1>
+      <div class="subtitle">Saved as DRAFT. Stock changes only when you finalize the order.</div>
+    </div>
+    <div class="actions">
+      <button mat-button type="button" (click)="cancel()">Cancel</button>
+      <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || loading()">
+        <mat-icon>save</mat-icon>Save draft
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
+
+  @if (!loading()) {
+    @if (companies().length === 0) {
+      <div class="card card-pad negative" style="margin-bottom: 16px">
+        No active company exists. An administrator must <a routerLink="/companies">create a company</a> before orders can be saved.
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <!-- ---------------------------------------------------------- header -->
+      <section class="card card-pad header-card">
+        <div class="header-grid">
+          <mat-form-field>
+            <mat-label>Company</mat-label>
+            <mat-select formControlName="companyUuid">
+              @for (c of companies(); track c.uuid) {
+                <mat-option [value]="c.uuid">{{ c.name }} <span class="code">{{ c.code }}</span></mat-option>
+              }
+            </mat-select>
+            <mat-error>{{ err(form.controls.companyUuid, 'Company') }}</mat-error>
+          </mat-form-field>
+
+          <app-search-select
+            [label]="meta().partyLabel"
+            [control]="form.controls.partyUuid"
+            [fetch]="fetchParties"
+            [initialLabel]="order() ? order()!.party.name + ' (' + order()!.party.code + ')' : null"
+            [errorText]="meta().partyLabel + ' is required.'" />
+
+          <mat-form-field>
+            <mat-label>Payment type</mat-label>
+            <mat-select formControlName="paymentType">
+              @for (p of paymentTypes; track p.value) { <mat-option [value]="p.value">{{ p.label }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field>
+            <mat-label>Order date</mat-label>
+            <input matInput [matDatepicker]="dp" formControlName="orderDate" [max]="today" />
+            <mat-datepicker-toggle matIconSuffix [for]="dp" />
+            <mat-datepicker #dp />
+            <mat-error>{{ err(form.controls.orderDate, 'Order date') }}</mat-error>
+          </mat-form-field>
+
+          <mat-form-field class="notes">
+            <mat-label>Notes</mat-label>
+            <textarea matInput rows="1" formControlName="notes"></textarea>
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------------------- lines -->
+      <section class="card lines-card">
+        <div class="lines-head">
+          <h2 class="card-title">Line items</h2>
+          <span class="muted">Prices are per piece. Values fill in automatically and can be changed.</span>
+        </div>
+
+        <div class="line-grid line-labels" aria-hidden="true">
+          <span>#</span><span>Product</span><span>Type</span><span>Boxes / Pcs</span><span>Total pcs</span>
+          <span>Per pcs</span><span>Per box</span><span>Line total</span><span></span>
+        </div>
+
+        <div formArrayName="lines">
+          @for (line of lines.controls; track line; let i = $index) {
+            <div class="line-grid line-row" [formGroupName]="i">
+              <span class="line-no">{{ i + 1 }}</span>
+
+              <div class="cell product">
+                <app-search-select
+                  label="Product"
+                  [control]="line.controls.productUuid"
+                  [fetch]="fetchProducts"
+                  [hint]="productHint"
+                  [initialLabel]="productMeta(i)?.label ?? null"
+                  subscript="dynamic"
+                  (selected)="onProductSelected(i, $event)" />
+                @if (productMeta(i); as p) {
+                  <div class="product-info">
+                    @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
+                    @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} pcs }
+                  </div>
+                }
+              </div>
+
+              <mat-form-field class="cell" subscriptSizing="dynamic">
+                <mat-label>Type</mat-label>
+                <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
+                  <mat-option value="PCS">PCS</mat-option>
+                  <mat-option value="BOX" [disabled]="!canUseBox(i)">BOX</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              @if (line.controls.quantityType.value === 'BOX') {
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Boxes</mat-label>
+                  <input matInput type="number" min="1" step="1" formControlName="boxQuantity" (input)="recalcQuantity(i)" />
+                </mat-form-field>
+              } @else {
+                <mat-form-field class="cell" subscriptSizing="dynamic">
+                  <mat-label>Pcs</mat-label>
+                  <input matInput type="number" min="1" step="1" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                </mat-form-field>
+              }
+
+              <mat-form-field class="cell" subscriptSizing="dynamic">
+                <mat-label>Total pcs</mat-label>
+                <input matInput type="number" min="1" step="1" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+              </mat-form-field>
+
+              <mat-form-field class="cell" subscriptSizing="dynamic">
+                <mat-label>Per pcs</mat-label>
+                <input matInput type="number" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
+              </mat-form-field>
+
+              <mat-form-field class="cell" subscriptSizing="dynamic">
+                <mat-label>Per box</mat-label>
+                <input matInput type="number" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)"
+                       [readonly]="line.controls.quantityType.value !== 'BOX'" />
+              </mat-form-field>
+
+              <mat-form-field class="cell" subscriptSizing="dynamic">
+                <mat-label>Line total</mat-label>
+                <input matInput type="number" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
+              </mat-form-field>
+
+              <button mat-icon-button type="button" class="remove" matTooltip="Remove line" (click)="removeLine(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+
+              @if (line.touched && line.invalid) {
+                <div class="line-error negative">
+                  @for (name of ['productUuid', 'boxQuantity', 'pcsQuantity', 'totalQuantityPcs', 'perPcsPrice', 'perBoxPrice', 'totalPrice']; track name) {
+                    @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="lines-foot">
+          <button mat-stroked-button type="button" (click)="addLine()"><mat-icon>add</mat-icon>Add line</button>
+          <div class="order-total">
+            <span class="muted">Order total</span>
+            <strong>{{ total() | money }}</strong>
+          </div>
+        </div>
+      </section>
+
+      @if (stockWarnings().length > 0) {
+        <div class="card card-pad warn-box">
+          <strong>Not enough stock</strong>
+          <ul>@for (w of stockWarnings(); track w) { <li>{{ w }}</li> }</ul>
+        </div>
+      }
+      @if (error()) {
+        <div class="card card-pad error-box">
+          <span>{{ error() }}</span>
+          @if (shortages().length > 0) {
+            <ul>@for (s of shortages(); track s.productUuid) { <li>{{ s.productName }} ({{ s.productCode }}): available {{ s.available }}, requested {{ s.required }}</li> }</ul>
+          }
+        </div>
+      }
+
+      <div class="bottom-actions">
+        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>Save draft</button>
+      </div>
+    </form>
+  }
+</div>

@@ -1,0 +1,30 @@
+# Local development database. Start with: docker compose up -d
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: sompriti_erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Optional: run the whole app in a container (http://localhost:8080)
+  app:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      - postgres
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=sompriti_erp;Username=postgres;Password=postgres"
+      Jwt__SigningKey: "local-docker-signing-key-change-me-0123456789"
+      SEED_ADMIN_EMAIL: "admin@sompriti.local"
+      SEED_ADMIN_PASSWORD: "Admin@12345"
+      App__PublicBaseUrl: "http://localhost:8080"
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

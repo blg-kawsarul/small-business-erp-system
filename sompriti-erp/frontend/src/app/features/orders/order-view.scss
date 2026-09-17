@@ -1,0 +1,16 @@
+.crumb { font-size: 13px; margin-bottom: 4px; }
+.title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.busy { margin: -8px 0 8px; }
+.void-banner { display: flex; gap: 12px; align-items: center; background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); margin-bottom: 16px; }
+.summary { display: grid; grid-template-columns: 1fr 1.2fr 0.9fr; gap: 16px; margin-bottom: 16px; }
+.party-name { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.notes { white-space: pre-line; }
+.totals { display: flex; flex-direction: column; gap: 8px; justify-content: center;
+  > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .due strong { font-size: 22px; }
+  .small { font-size: 12px; }
+}
+.section { margin-bottom: 16px; padding-bottom: 4px; }
+.pad { padding: 16px 16px 0; }
+@media (max-width: 960px) { .summary { grid-template-columns: 1fr; } }

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Sompriti.Erp.Domain</RootNamespace>
+  </PropertyGroup>
+</Project>

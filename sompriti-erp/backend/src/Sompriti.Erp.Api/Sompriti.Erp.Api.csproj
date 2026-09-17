@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Sompriti.Erp.Api</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Sompriti.Erp.Infrastructure\Sompriti.Erp.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

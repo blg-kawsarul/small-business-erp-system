@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Sompriti.Erp.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Sompriti.Erp.Domain\Sompriti.Erp.Domain.csproj" />
+  </ItemGroup>
+</Project>

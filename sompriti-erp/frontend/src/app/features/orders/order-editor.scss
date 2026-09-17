@@ -1,0 +1,45 @@
+.header-card { margin-bottom: 16px; }
+.header-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 16px;
+  mat-form-field, app-search-select { width: 100%; }
+  .notes { grid-column: 1 / -1; }
+}
+
+.lines-card { padding: 16px 16px 8px; margin-bottom: 16px; }
+.lines-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; .card-title { margin: 0; } }
+
+.line-grid {
+  display: grid;
+  grid-template-columns: 28px minmax(220px, 3fr) 92px 96px 96px 110px 110px 120px 40px;
+  gap: 8px;
+  align-items: start;
+}
+.line-labels { font-size: 12px; color: var(--erp-muted); padding: 4px 0; border-bottom: 1px solid var(--erp-border); span:first-child { text-align: center; } }
+.line-row { padding: 10px 0 6px; border-bottom: 1px dashed var(--erp-border); }
+.line-no { padding-top: 16px; text-align: center; color: var(--erp-muted); font-variant-numeric: tabular-nums; }
+.cell { width: 100%; min-width: 0; }
+.product-info { font-size: 12px; color: var(--erp-muted); margin: 2px 4px 0; }
+.remove { margin-top: 6px; }
+.line-error { grid-column: 2 / -1; font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+.lines-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px; flex-wrap: wrap; gap: 12px; }
+.order-total { display: flex; align-items: baseline; gap: 12px; font-size: 20px; }
+
+.warn-box { background: var(--erp-chip-warn-bg); color: var(--erp-chip-warn-fg); margin-bottom: 12px; ul { margin: 6px 0 0; } }
+.error-box { background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); margin-bottom: 12px; ul { margin: 6px 0 0; } }
+.bottom-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 1100px) {
+  .header-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .line-labels { display: none; }
+  .line-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .line-no { grid-column: 1 / -1; text-align: left; padding-top: 0; font-weight: 600; }
+  .product { grid-column: 1 / -1; }
+  .remove { justify-self: end; }
+}
+@media (max-width: 600px) {
+  .header-grid { grid-template-columns: 1fr; }
+  .line-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

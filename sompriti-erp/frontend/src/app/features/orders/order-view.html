@@ -1,0 +1,113 @@
+<div class="page">
+  @if (loading() && !order()) { <mat-progress-bar mode="indeterminate" /> }
+  @if (error() && !order()) {
+    <div class="card card-pad negative">{{ error() }} <a [routerLink]="meta().route">Back to list</a></div>
+  }
+
+  @if (order(); as o) {
+    <div class="page-header">
+      <div>
+        <div class="crumb"><a [routerLink]="meta().route">{{ auth.isUser() ? 'Orders' : meta().title }}</a></div>
+        <h1 class="title">{{ meta().singular }} #{{ o.orderNumber }} <app-status [value]="o.postingStatus" /></h1>
+        <div class="subtitle">
+          Created {{ o.createdDate | date: 'dd MMM yyyy, h:mm a' }} by {{ o.createdByUserName }}
+          @if (o.finalizedDate) { · Finalized {{ o.finalizedDate | date: 'dd MMM yyyy, h:mm a' }} by {{ o.finalizedByUserName }} }
+          @if (o.voidedDate) { · Voided {{ o.voidedDate | date: 'dd MMM yyyy, h:mm a' }} by {{ o.voidedByUserName }} }
+        </div>
+      </div>
+      <div class="actions">
+        <button mat-stroked-button [matMenuTriggerFor]="printMenu" [disabled]="busy()"><mat-icon>print</mat-icon>Print</button>
+        <mat-menu #printMenu="matMenu">
+          <button mat-menu-item (click)="pdf(false)"><mat-icon>open_in_new</mat-icon>Open PDF</button>
+          <button mat-menu-item (click)="pdf(true)"><mat-icon>download</mat-icon>Download PDF</button>
+        </mat-menu>
+
+        @if (canWrite() && isDraft()) {
+          <a mat-stroked-button [routerLink]="[meta().route, o.uuid, 'edit']"><mat-icon>edit</mat-icon>Edit</a>
+          <button mat-flat-button (click)="finalize()" [disabled]="busy() || o.lines.length === 0"><mat-icon>task_alt</mat-icon>Finalize</button>
+        }
+        @if (canWrite() && isFinal()) {
+          <button mat-flat-button (click)="addPayment()" [disabled]="busy() || o.dueAmount <= 0"><mat-icon>payments</mat-icon>Add payment</button>
+        }
+        @if (canWrite() && (isDraft() || (isFinal() && canVoid()))) {
+          <button mat-icon-button [matMenuTriggerFor]="moreMenu" aria-label="More actions"><mat-icon>more_vert</mat-icon></button>
+          <mat-menu #moreMenu="matMenu">
+            @if (canVoid()) { <button mat-menu-item (click)="voidOrder()"><mat-icon>block</mat-icon>Void order</button> }
+            @if (isDraft()) { <button mat-menu-item (click)="deleteDraft()"><mat-icon>delete</mat-icon>Delete draft</button> }
+          </mat-menu>
+        }
+      </div>
+    </div>
+    @if (busy()) { <mat-progress-bar mode="indeterminate" class="busy" /> }
+
+    @if (o.postingStatus === 'VOID') {
+      <div class="card card-pad void-banner"><mat-icon>block</mat-icon><div><strong>This order is void.</strong> Reason: {{ o.voidReason }}</div></div>
+    }
+
+    <div class="summary">
+      <section class="card card-pad">
+        <h2 class="card-title">{{ meta().partyLabel }}</h2>
+        <div class="party-name">{{ o.party.name }} <span class="code">{{ o.party.code }}</span></div>
+        <div class="muted">{{ o.party.mobileNumber }}</div>
+        @if (o.party.address || o.party.city) { <div class="muted">{{ o.party.address }}@if (o.party.address && o.party.city) {, }{{ o.party.city }}</div> }
+      </section>
+      <section class="card card-pad">
+        <h2 class="card-title">Order</h2>
+        <dl class="kv">
+          <dt>Company</dt><dd>{{ o.company.companyName }}</dd>
+          <dt>Order date</dt><dd>{{ o.orderDate | date: 'dd MMM yyyy' }}</dd>
+          <dt>Payment type</dt><dd>{{ o.paymentType | label }}</dd>
+          @if (o.notes) { <dt>Notes</dt><dd class="notes">{{ o.notes }}</dd> }
+        </dl>
+      </section>
+      <section class="card card-pad totals">
+        <div><span class="muted">Order total</span><strong>{{ o.totalAmount | money }}</strong></div>
+        <div><span class="muted">Paid</span><strong class="positive">{{ o.totalPaidAmount | money }}</strong></div>
+        <div class="due"><span class="muted">Due</span><strong [class.negative]="o.dueAmount > 0">{{ o.dueAmount | money }}</strong></div>
+        @if (o.postingStatus === 'DRAFT') { <div class="muted small">Payments can be added after the order is finalized.</div> }
+      </section>
+    </div>
+
+    <section class="card section">
+      <h2 class="card-title pad">Line items</h2>
+      <div class="table-wrap">
+        <table mat-table [dataSource]="o.lines">
+          <ng-container matColumnDef="no"><th mat-header-cell *matHeaderCellDef>#</th><td mat-cell *matCellDef="let l">{{ l.lineNumber }}</td></ng-container>
+          <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let l">{{ l.productName }} <span class="code">{{ l.productCode }}</span></td></ng-container>
+          <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let l">{{ l.quantityType }}</td></ng-container>
+          <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">Boxes</th><td mat-cell *matCellDef="let l" class="num">{{ l.boxQuantity | qty }}@if (l.pcsPerBoxSnapshot) { <span class="muted"> ×{{ l.pcsPerBoxSnapshot }}</span> }</td></ng-container>
+          <ng-container matColumnDef="pcs"><th mat-header-cell *matHeaderCellDef class="num">Total pcs</th><td mat-cell *matCellDef="let l" class="num">{{ l.totalQuantityPcs | qty }}</td></ng-container>
+          <ng-container matColumnDef="perBox"><th mat-header-cell *matHeaderCellDef class="num">Per box</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.perBoxPrice === null ? '-' : (l.perBoxPrice | money: false) }}</td></ng-container>
+          <ng-container matColumnDef="perPcs"><th mat-header-cell *matHeaderCellDef class="num">Per pcs</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.perPcsPrice | money: false }}</td></ng-container>
+          <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef class="num">Total</th><td mat-cell *matCellDef="let l" class="num nowrap"><strong>{{ l.totalPrice | money }}</strong></td></ng-container>
+          <tr mat-header-row *matHeaderRowDef="lineColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: lineColumns"></tr>
+        </table>
+      </div>
+      @if (o.lines.length === 0) { <div class="empty">No line items. Edit the draft to add products.</div> }
+    </section>
+
+    <section class="card section">
+      <h2 class="card-title pad">Payment history</h2>
+      <div class="table-wrap">
+        <table mat-table [dataSource]="o.payments">
+          <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.paymentDate | date: 'dd MMM yyyy' }}</td></ng-container>
+          <ng-container matColumnDef="method"><th mat-header-cell *matHeaderCellDef>Method</th><td mat-cell *matCellDef="let p">{{ p.paymentMethod | label }}</td></ng-container>
+          <ng-container matColumnDef="note"><th mat-header-cell *matHeaderCellDef>Note</th><td mat-cell *matCellDef="let p">{{ p.paymentNote }}</td></ng-container>
+          <ng-container matColumnDef="by"><th mat-header-cell *matHeaderCellDef>Recorded by</th><td mat-cell *matCellDef="let p" class="muted">{{ p.createdByUserName }}</td></ng-container>
+          <ng-container matColumnDef="amount"><th mat-header-cell *matHeaderCellDef class="num">Amount</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.paymentAmount | money }}</td></ng-container>
+          <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let p" class="num">
+              @if (canWrite() && isFinal()) {
+                <button mat-icon-button matTooltip="Remove payment" (click)="deletePayment(p.uuid)" [disabled]="busy()"><mat-icon>delete</mat-icon></button>
+              }
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="paymentColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: paymentColumns"></tr>
+        </table>
+      </div>
+      @if (o.payments.length === 0) { <div class="empty">No payments recorded.</div> }
+    </section>
+  }
+</div>

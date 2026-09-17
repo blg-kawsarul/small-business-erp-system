@@ -1,0 +1,142 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ greeting() }}, {{ auth.user()?.userName }}</h1>
+      <div class="subtitle">Here is what is happening in your business.</div>
+    </div>
+    @if (!auth.isUser() && companies().length > 1) {
+      <mat-form-field subscriptSizing="dynamic" style="width: 220px">
+        <mat-label>Company</mat-label>
+        <mat-select [formControl]="company" (selectionChange)="load()">
+          <mat-option [value]="null">All companies</mat-option>
+          @for (c of companies(); track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+    }
+  </div>
+
+  @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
+  @if (error()) { <div class="card card-pad negative">{{ error() }}</div> }
+
+  @if (data(); as d) {
+    @if (d.role !== 'USER') {
+      <!-- ------------------------------------------------ staff dashboard -->
+      <div class="stats">
+        <a class="card stat" routerLink="/sales-orders">
+          <span class="label"><mat-icon>today</mat-icon>Today's sales</span>
+          <strong>{{ d.todaySales | money }}</strong>
+        </a>
+        <a class="card stat" routerLink="/sales-orders">
+          <span class="label"><mat-icon>calendar_month</mat-icon>Sales this month</span>
+          <strong>{{ d.monthSales | money }}</strong>
+        </a>
+        @if (d.monthPurchases !== null) {
+          <a class="card stat" routerLink="/purchase-orders">
+            <span class="label"><mat-icon>shopping_cart</mat-icon>Purchases this month</span>
+            <strong>{{ d.monthPurchases | money }}</strong>
+          </a>
+        }
+        <a class="card stat" routerLink="/reports/dues">
+          <span class="label"><mat-icon>account_balance_wallet</mat-icon>Customer due</span>
+          <strong class="negative">{{ d.customerDue | money }}</strong>
+        </a>
+        @if (d.supplierDue !== null) {
+          <a class="card stat" routerLink="/reports/dues">
+            <span class="label"><mat-icon>local_shipping</mat-icon>Supplier due</span>
+            <strong class="negative">{{ d.supplierDue | money }}</strong>
+          </a>
+        }
+        <a class="card stat" routerLink="/sales-orders" [queryParams]="{ status: 'DRAFT' }">
+          <span class="label"><mat-icon>edit_note</mat-icon>Draft orders</span>
+          <strong>{{ (d.draftSalesOrders ?? 0) + (d.draftPurchaseOrders ?? 0) }}</strong>
+          <span class="hint">{{ d.draftSalesOrders }} sales@if (d.draftPurchaseOrders !== null) { · {{ d.draftPurchaseOrders }} purchase }</span>
+        </a>
+      </div>
+
+      <div class="grid-2">
+        <section class="card card-pad">
+          <div class="section-head">
+            <h2 class="card-title">Sales — last 30 days</h2>
+            <span class="muted">Finalized orders</span>
+          </div>
+          <div class="chart-box"><canvas #chart aria-label="Daily sales for the last 30 days" role="img"></canvas></div>
+        </section>
+
+        <section class="card card-pad">
+          <div class="section-head">
+            <h2 class="card-title">Low stock</h2>
+            <a mat-button routerLink="/stock">View stock</a>
+          </div>
+          @for (p of d.lowStock; track p.productUuid) {
+            <div class="low-row">
+              <div>{{ p.productName }} <span class="code">{{ p.productCode }}</span></div>
+              <div class="nowrap"><strong class="negative">{{ p.currentStock | qty }}</strong> <span class="muted">/ {{ p.threshold }} pcs</span></div>
+            </div>
+          } @empty {
+            <div class="empty">All products are above their alert level.</div>
+          }
+        </section>
+      </div>
+
+      <div class="grid-2">
+        <section class="card card-pad">
+          <div class="section-head">
+            <h2 class="card-title">Latest sales orders</h2>
+            @if (auth.canSales()) { <a mat-button routerLink="/sales-orders/new"><mat-icon>add</mat-icon>New</a> }
+          </div>
+          <ng-container *ngTemplateOutlet="orders; context: { $implicit: d.latestSales }" />
+        </section>
+        @if (auth.isAdmin()) {
+          <section class="card card-pad">
+            <div class="section-head">
+              <h2 class="card-title">Latest purchase orders</h2>
+              <a mat-button routerLink="/purchase-orders/new"><mat-icon>add</mat-icon>New</a>
+            </div>
+            <ng-container *ngTemplateOutlet="orders; context: { $implicit: d.latestPurchases }" />
+          </section>
+        }
+      </div>
+    } @else {
+      <!-- ------------------------------------------------ USER dashboard -->
+      @if (unlinkedUser()) {
+        <div class="card card-pad">
+          <h2 class="card-title">Account awaiting link</h2>
+          <p class="muted">Your account is not yet linked to a customer or supplier. An administrator needs to link it before you can see your orders and payments.</p>
+        </div>
+      }
+      <div class="grid-2">
+        @for (s of [d.asBuyer, d.asSupplier]; track $index) {
+          @if (s) {
+            <section class="card card-pad">
+              <h2 class="card-title">{{ $index === 0 ? 'As buyer' : 'As supplier' }} · {{ s.partyName }}</h2>
+              <div class="linked">
+                <div><span class="muted">Orders</span><strong>{{ s.orderCount }}</strong></div>
+                <div><span class="muted">Total</span><strong>{{ s.totalAmount | money }}</strong></div>
+                <div><span class="muted">Paid</span><strong class="positive">{{ s.totalPaid | money }}</strong></div>
+                <div><span class="muted">Due</span><strong class="negative">{{ s.due | money }}</strong></div>
+              </div>
+              <ng-container *ngTemplateOutlet="orders; context: { $implicit: $index === 0 ? d.latestSales : d.latestPurchases }" />
+            </section>
+          }
+        }
+      </div>
+    }
+  }
+
+  <ng-template #orders let-list>
+    @for (o of list; track o.uuid) {
+      <a class="order-row" [routerLink]="orderLink(o)">
+        <div>
+          <div><strong>#{{ o.orderNumber }}</strong> · {{ o.partyName }}</div>
+          <div class="muted small">{{ o.orderDate | date: 'dd MMM yyyy' }} · {{ o.companyName }}</div>
+        </div>
+        <div class="right">
+          <div class="nowrap">{{ o.totalAmount | money }}</div>
+          <app-status [value]="o.postingStatus" />
+        </div>
+      </a>
+    } @empty {
+      <div class="empty">No orders yet.</div>
+    }
+  </ng-template>
+</div>
